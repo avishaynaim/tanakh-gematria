@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת חיפוש מסעדות - סגור בשבת</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .search-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-form {
+            display: grid;
+            gap: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .search-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-button:active {
+            transform: translateY(0);
+        }
+
+        .search-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .location-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.3em;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 60px;
+        }
+
+        .location-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .location-button:active {
+            transform: scale(0.98);
+        }
+
+        .location-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .location-button.loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .map-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            animation: fadeIn 0.3s;
+        }
+
+        .map-modal.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .map-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 800px;
+            height: 80vh;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+        }
+
+        .map-modal-header {
+            padding: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .map-modal-header h3 {
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .map-close-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            font-size: 1.3em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .map-close-btn:hover {
+            background: #d32f2f;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .map-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 500;
+            font-size: 0.95em;
+        }
+
+        .map-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+            min-width: 60px;
+        }
+
+        .map-button:hover {
+            transform: scale(1.05);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .results-header {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .results-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .info-icon {
+            font-size: 1.5em;
+        }
+
+        .info-text {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .places-table-container {
+            display: none;
+        }
+
+        .places-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 1em;
+        }
+
+        .places-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 18px;
+            text-align: right;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            white-space: nowrap;
+            border-bottom: 2px solid #5568d3;
+        }
+
+        .places-table th:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8a 100%);
+        }
+
+        .places-table th::after {
+            content: ' ↕';
+            opacity: 0.5;
+            font-size: 0.9em;
+            margin-right: 5px;
+        }
+
+        .places-table th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+
+        .places-table th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+
+        .places-table tbody tr {
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .places-table tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .places-table td {
+            padding: 20px 18px;
+            text-align: right;
+            vertical-align: middle;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .places-table tr:hover {
+            background: #f0f7ff !important;
+        }
+
+        .places-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-number {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1.3em;
+            text-align: center;
+            width: 50px;
+        }
+
+        .table-name {
+            min-width: 280px;
+            max-width: 350px;
+        }
+
+        .table-name strong {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.05em;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .table-name small {
+            display: block;
+            font-weight: 400;
+            font-size: 0.9em;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .table-rating {
+            text-align: center;
+            white-space: nowrap;
+            width: 120px;
+        }
+
+        .table-rating-stars {
+            color: #ffd700;
+            font-size: 1.1em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .table-rating-number {
+            font-weight: 700;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .table-reviews {
+            text-align: center;
+            font-weight: 600;
+            color: #555;
+            width: 80px;
+        }
+
+        .table-distance {
+            text-align: center;
+            font-weight: 500;
+            color: #555;
+            width: 90px;
+        }
+
+        .table-phone {
+            direction: ltr;
+            text-align: left;
+            font-family: monospace;
+            color: #555;
+            width: 130px;
+        }
+
+        .table-saturday {
+            max-width: 180px;
+            font-size: 0.9em;
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .table-map {
+            text-align: center;
+            width: 60px;
+        }
+
+        .table-link {
+            color: #4285f4;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.5em;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .table-link:hover {
+            transform: scale(1.2);
+        }
+
+        .places-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .place-card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .place-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+
+        .place-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .place-name {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .place-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .place-address {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+
+        .place-rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stars {
+            color: #ffd700;
+            font-size: 1.3em;
+            letter-spacing: 2px;
+        }
+
+        .rating-text {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .reviews {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .place-details {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95em;
+        }
+
+        .detail-icon {
+            width: 25px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+
+        .detail-text {
+            color: #555;
+        }
+
+        .map-link {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .map-link:hover {
+            background: #357ae8;
+        }
+
+        .hours-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .hours-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #667eea;
+            font-weight: 600;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .hours-toggle:hover {
+            background: #f5f5f5;
+        }
+
+        .hours-toggle-icon {
+            font-size: 1.2em;
+            transition: transform 0.2s;
+        }
+
+        .hours-toggle.expanded .hours-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .hours-list {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .hours-list.visible {
+            display: block;
+        }
+
+        .hours-day {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.9em;
+        }
+
+        .hours-day:last-child {
+            border-bottom: none;
+        }
+
+        .hours-day-name {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .hours-day-time {
+            color: #666;
+        }
+
+        .hours-day.saturday {
+            background: #fff3cd;
+            margin: 0 -10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+        }
+
+        .hours-day.saturday .hours-day-name {
+            color: #856404;
+        }
+
+        .show-more-container {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .show-more-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .show-more-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .show-more-button:active {
+            transform: translateY(0);
+        }
+
+        .no-results {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .no-results-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .no-results h3 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .no-results p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .rate-limit {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .rate-limit-good {
+            color: #4caf50;
+        }
+
+        .rate-limit-medium {
+            color: #ff9800;
+        }
+
+        .rate-limit-low {
+            color: #f44336;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .header p {
+                font-size: 1em;
+            }
+
+            .search-card {
+                padding: 20px;
+            }
+
+            .place-card {
+                padding: 20px;
+            }
+
+            .places-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .place-name {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 מערכת חיפוש מסעדות</h1>
+            <p>מצא מסעדות ובתי קפה סגורים בשבת</p>
+        </div>
+
+        <div class="search-card">
+            <form id="searchForm" class="search-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="city">🌍 שם עיר (או בחר מיקום)</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="city" value="Rehovot" placeholder="לדוגמה: תל אביב" style="flex: 1;">
+                            <button type="button" id="useLocationBtn" class="location-button" title="השתמש במיקום הנוכחי שלי">📍</button>
+                            <button type="button" id="openMapBtn" class="map-button" title="בחר מיקום מהמפה">🗺️</button>
+                        </div>
+                        <small id="locationStatus" style="display: none; margin-top: 5px; color: #667eea;"></small>
+                    </div>
+                    <div class="form-group">
+                        <label for="radius">📏 רדיוס חיפוש (ק"מ)</label>
+                        <select id="radius">
+                            <option value="5">5 ק"מ</option>
+                            <option value="10">10 ק"מ</option>
+                            <option value="15" selected>15 ק"מ</option>
+                            <option value="20">20 ק"מ</option>
+                            <option value="25">25 ק"מ</option>
+                            <option value="30">30 ק"מ</option>
+                            <option value="40">40 ק"מ</option>
+                            <option value="50">50 ק"מ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rating">⭐ דירוג מינימלי</label>
+                        <select id="rating">
+                            <option value="1.0">1.0+ ⭐</option>
+                            <option value="2.0">2.0+ ⭐⭐</option>
+                            <option value="2.5">2.5+ ⭐⭐½</option>
+                            <option value="3.0">3.0+ ⭐⭐⭐</option>
+                            <option value="3.5">3.5+ ⭐⭐⭐½</option>
+                            <option value="4.0">4.0+ ⭐⭐⭐⭐</option>
+                            <option value="4.5" selected>4.5+ ⭐⭐⭐⭐½</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reviews">💬 ביקורות מינימליות</label>
+                        <input type="number" id="reviews" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="type">🍽️ סוג</label>
+                        <select id="type">
+                            <option value="both">שניהם</option>
+                            <option value="restaurant">מסעדה</option>
+                            <option value="cafe">בית קפה</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="limit">📊 כמות תוצאות להצגה</label>
+                        <input type="number" id="limit" value="50" min="1" max="120">
+                    </div>
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="closedSaturday" checked style="width: auto;">
+                        <label for="closedSaturday" style="margin: 0;">🗓️ סגור בשבת (8:00-17:00)</label>
+                    </div>
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="openNow" checked style="width: auto;">
+                        <label for="openNow" style="margin: 0;">🕐 פתוח עכשיו</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="search-button">🔍 חפש מקומות</button>
+            </form>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>מחפש מקומות סגורים בשבת...</p>
+            <p style="font-size: 0.9em; opacity: 0.8; margin-top: 10px;">⏳ אוסף תוצאות מכל הדפים...</p>
+            <p style="font-size: 0.85em; opacity: 0.7; margin-top: 5px;">Google API מחזיר תוצאות בעמודים עם המתנה של 3 שניות בין כל עמוד</p>
+            <p style="font-size: 0.85em; opacity: 0.7; margin-top: 5px;">התהליך עשוי לקחת 20-60 שניות</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <!-- Map Modal -->
+    <div id="mapModal" class="map-modal">
+        <div class="map-modal-content">
+            <div class="map-modal-header">
+                <h3>🗺️ בחר מיקום על המפה</h3>
+                <button class="map-close-btn" onclick="closeMapModal()">✕</button>
+            </div>
+            <div class="map-container">
+                <div class="map-info">
+                    <strong>לחץ על המפה כדי לבחור מיקום</strong><br>
+                    <span id="selectedCoords" style="color: #667eea; font-size: 0.9em;"></span>
+                </div>
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const form = document.getElementById('searchForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+
+        // Global state for pagination and sorting
+        let allPlaces = []; // Filtered places (after Saturday and openNow filters)
+        let allPlacesRaw = []; // Raw places from server (no filtering)
+        let currentOffset = 0;
+        let resultsPerPage = 50;
+        let searchData = null;
+        let currentSortColumn = 'rating';
+        let currentSortDirection = 'desc';
+        let currentLocation = null; // Store current GPS location
+
+        // Map variables
+        let map = null;
+        let mapMarker = null;
+        let selectedMapLocation = null;
+
+        // Handle "Use Current Location" button
+        const useLocationBtn = document.getElementById('useLocationBtn');
+        const cityInput = document.getElementById('city');
+        const locationStatus = document.getElementById('locationStatus');
+
+        useLocationBtn.addEventListener('click', async () => {
+            if (!navigator.geolocation) {
+                alert('הדפדפן שלך לא תומך בשירותי מיקום');
+                return;
+            }
+
+            // Disable button and show loading
+            useLocationBtn.disabled = true;
+            useLocationBtn.classList.add('loading');
+            locationStatus.style.display = 'block';
+            locationStatus.textContent = 'מאתר את המיקום שלך...';
+            locationStatus.style.color = '#667eea';
+
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 60000,
+                        maximumAge: 0
+                    });
+                });
+
+                currentLocation = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+
+                // Clear city input and show success message
+                cityInput.value = '';
+                cityInput.placeholder = `מיקום נוכחי: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+                locationStatus.textContent = `✓ משתמש במיקום הנוכחי: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+                locationStatus.style.color = '#4caf50';
+
+            } catch (error) {
+                console.error('Error getting location:', error);
+                let errorMsg = 'שגיאה בקבלת מיקום';
+
+                if (error.code === 1) {
+                    errorMsg = 'גישה למיקום נדחתה. אנא אפשר הרשאות מיקום בדפדפן';
+                } else if (error.code === 2) {
+                    errorMsg = 'לא ניתן לקבל את המיקום. בדוק את הגדרות המיקום במכשיר';
+                } else if (error.code === 3) {
+                    errorMsg = 'פג תוקף הבקשה למיקום';
+                }
+
+                locationStatus.textContent = `✗ ${errorMsg}`;
+                locationStatus.style.color = '#f44336';
+                alert(errorMsg);
+            } finally {
+                useLocationBtn.disabled = false;
+                useLocationBtn.classList.remove('loading');
+            }
+        });
+
+        // Clear location when user types in city field
+        cityInput.addEventListener('input', () => {
+            if (cityInput.value) {
+                currentLocation = null;
+                cityInput.placeholder = 'לדוגמה: תל אביב';
+                locationStatus.style.display = 'none';
+            }
+        });
+
+        // Add event listeners to filter checkboxes - re-filter without calling server
+        document.getElementById('closedSaturday').addEventListener('change', () => {
+            if (allPlacesRaw.length > 0) {
+                applyClientFilters();
+                displayResults(false);
+            }
+        });
+
+        document.getElementById('openNow').addEventListener('change', () => {
+            if (allPlacesRaw.length > 0) {
+                applyClientFilters();
+                displayResults(false);
+            }
+        });
+
+        // Map modal functions
+        function initMap() {
+            if (map) return; // Already initialized
+
+            // Center on Israel by default
+            const defaultLat = 31.7683;
+            const defaultLng = 35.2137;
+
+            map = L.map('map').setView([defaultLat, defaultLng], 8);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Handle map clicks
+            map.on('click', function(e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+
+                // Remove old marker if exists
+                if (mapMarker) {
+                    map.removeLayer(mapMarker);
+                }
+
+                // Add new marker
+                mapMarker = L.marker([lat, lng]).addTo(map);
+
+                // Store selected location
+                selectedMapLocation = {
+                    latitude: lat,
+                    longitude: lng
+                };
+
+                // Update display
+                document.getElementById('selectedCoords').textContent =
+                    `נבחר: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            });
+        }
+
+        function openMapModal() {
+            const modal = document.getElementById('mapModal');
+            modal.classList.add('active');
+
+            // Initialize map on first open
+            if (!map) {
+                initMap();
+            }
+
+            // Resize map to fit container
+            setTimeout(() => {
+                map.invalidateSize();
+
+                // If there's a current location, center on it
+                if (currentLocation) {
+                    map.setView([currentLocation.latitude, currentLocation.longitude], 13);
+
+                    if (mapMarker) {
+                        map.removeLayer(mapMarker);
+                    }
+                    mapMarker = L.marker([currentLocation.latitude, currentLocation.longitude]).addTo(map);
+                    selectedMapLocation = currentLocation;
+                    document.getElementById('selectedCoords').textContent =
+                        `מיקום נוכחי: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+                } else {
+                    // Try to get user's location and center there
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                const lat = position.coords.latitude;
+                                const lng = position.coords.longitude;
+                                map.setView([lat, lng], 13);
+                            },
+                            () => {
+                                // Ignore errors, stay at default position
+                            }
+                        );
+                    }
+                }
+            }, 100);
+        }
+
+        function closeMapModal() {
+            const modal = document.getElementById('mapModal');
+            modal.classList.remove('active');
+
+            // If a location was selected, use it
+            if (selectedMapLocation) {
+                currentLocation = selectedMapLocation;
+                cityInput.value = '';
+                cityInput.placeholder = `מיקום ממפה: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+                locationStatus.style.display = 'block';
+                locationStatus.textContent = `✓ נבחר ממפה: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`;
+                locationStatus.style.color = '#4caf50';
+            }
+        }
+
+        // Open map button
+        document.getElementById('openMapBtn').addEventListener('click', openMapModal);
+
+        // Close modal when clicking outside
+        document.getElementById('mapModal').addEventListener('click', function(e) {
+            if (e.target.id === 'mapModal') {
+                closeMapModal();
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Reset pagination
+            currentOffset = 0;
+
+            // Get form values
+            const city = document.getElementById('city').value;
+            const radius = document.getElementById('radius').value;
+            const rating = document.getElementById('rating').value;
+            const reviews = document.getElementById('reviews').value;
+            const type = document.getElementById('type').value;
+            const closedSaturday = document.getElementById('closedSaturday').checked;
+            const openNow = document.getElementById('openNow').checked;
+            resultsPerPage = parseInt(document.getElementById('limit').value) || 50;
+
+            // Check if we have location or city
+            if (!currentLocation && !city) {
+                errorDiv.textContent = '❌ אנא הזן שם עיר או השתמש במיקום הנוכחי';
+                errorDiv.classList.add('active');
+                return;
+            }
+
+            // Show loading, hide results and errors
+            loading.classList.add('active');
+            results.classList.remove('active');
+            errorDiv.classList.remove('active');
+
+            try {
+                // Build query string - use coordinates if available, otherwise use city
+                // Note: closedSaturday is filtered on client side, not sent to server
+                const params = new URLSearchParams({
+                    radius: radius,
+                    minRating: rating,
+                    minReviews: reviews,
+                    type: type,
+                    closedSaturday: false // Always fetch all places, filter on client
+                });
+
+                if (currentLocation) {
+                    // Use coordinates
+                    params.append('latitude', currentLocation.latitude);
+                    params.append('longitude', currentLocation.longitude);
+                } else {
+                    // Use city name
+                    params.append('city', city);
+                }
+
+                // Create AbortController with 4 minute timeout (server has 5 min timeout)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 240000); // 4 minutes
+
+                let response, data;
+                try {
+                    // Make API request with timeout
+                    response = await fetch(`/api/places/search?${params}`, {
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    data = await response.json();
+                } catch (fetchError) {
+                    clearTimeout(timeoutId);
+                    if (fetchError.name === 'AbortError') {
+                        throw new Error('החיפוש לקח יותר מדי זמן. נסה להקטין את רדיוס החיפוש');
+                    }
+                    throw fetchError;
+                }
+
+                // Hide loading
+                loading.classList.remove('active');
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Search failed');
+                }
+
+                // Store raw data from server
+                searchData = data;
+                allPlacesRaw = data.places || [];
+
+                // Apply client-side filters
+                applyClientFilters();
+
+                // Display results
+                displayResults(false);
+
+            } catch (error) {
+                loading.classList.remove('active');
+                errorDiv.textContent = `❌ שגיאה: ${error.message}`;
+                errorDiv.classList.add('active');
+            }
+        });
+
+        function filterOpenNow(places) {
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+
+            return places.filter(place => {
+                if (!place.openingHours || place.openingHours.length === 0) return false;
+
+                const todayHours = place.openingHours[dayOfWeek];
+                if (!todayHours) return false;
+
+                const lowerHours = todayHours.toLowerCase();
+                if (lowerHours.includes('closed') || lowerHours.includes('סגור')) return false;
+
+                // Try to parse hours (simplified - just check if not closed)
+                return true;
+            });
+        }
+
+        function filterClosedSaturday(places) {
+            return places.filter(place => {
+                if (!place.openingHours || place.openingHours.length === 0) {
+                    return true; // Include places without hours (might be closed)
+                }
+
+                const saturdayHours = place.openingHours[6]; // Saturday is index 6
+                if (!saturdayHours) {
+                    return true; // No Saturday data, assume closed
+                }
+
+                const lowerText = saturdayHours.toLowerCase();
+
+                // Check if explicitly closed
+                const closedKeywords = ['closed', 'cerrado', 'fermé', 'geschlossen', 'סגור', 'chiuso'];
+                const isClosedByKeyword = closedKeywords.some(keyword => lowerText.includes(keyword));
+
+                if (isClosedByKeyword) {
+                    return true; // Explicitly closed
+                }
+
+                // Check if 24 hours
+                const is24Hours = lowerText.includes('24 hours') || lowerText.includes('24 שעות') || lowerText.includes('open 24 hours');
+                if (is24Hours) {
+                    return false; // Open 24 hours = open during business hours
+                }
+
+                // Parse opening hours and check if open during business hours (8 AM - 5 PM)
+                const timePattern = /(\d{1,2}):(\d{2})\s*(am|pm)?[\s–-]+(\d{1,2}):(\d{2})\s*(am|pm)?/gi;
+                const matches = [...saturdayHours.matchAll(timePattern)];
+
+                if (matches.length === 0) {
+                    return true; // No time pattern, assume closed
+                }
+
+                const businessStart = 8 * 60; // 8:00 AM in minutes
+                const businessEnd = 17 * 60;  // 5:00 PM in minutes
+
+                for (const match of matches) {
+                    let openHour = parseInt(match[1]);
+                    const openMin = parseInt(match[2]);
+                    const openPeriod = match[3]?.toLowerCase();
+                    let closeHour = parseInt(match[4]);
+                    const closeMin = parseInt(match[5]);
+                    const closePeriod = match[6]?.toLowerCase();
+
+                    // Convert to 24-hour format
+                    if (openPeriod === 'pm' && openHour !== 12) openHour += 12;
+                    if (openPeriod === 'am' && openHour === 12) openHour = 0;
+                    if (closePeriod === 'pm' && closeHour !== 12) closeHour += 12;
+                    if (closePeriod === 'am' && closeHour === 12) closeHour = 0;
+
+                    const openTime = openHour * 60 + openMin;
+                    const closeTime = closeHour * 60 + closeMin;
+
+                    // Check if open during business hours
+                    if (openTime <= businessEnd && closeTime >= businessStart) {
+                        return false; // Open during business hours, exclude
+                    }
+                }
+
+                return true; // Closed during business hours
+            });
+        }
+
+        function applyClientFilters() {
+            // Start with raw data from server
+            let filtered = [...allPlacesRaw];
+
+            // Apply Saturday filter if checked
+            const closedSaturday = document.getElementById('closedSaturday').checked;
+            if (closedSaturday) {
+                filtered = filterClosedSaturday(filtered);
+            }
+
+            // Apply open now filter if checked
+            const openNow = document.getElementById('openNow').checked;
+            if (openNow) {
+                filtered = filterOpenNow(filtered);
+            }
+
+            // Update filtered places
+            allPlaces = filtered;
+
+            // Reset pagination
+            currentOffset = 0;
+        }
+
+
+        function displayResults(append = false) {
+            const { location, filters } = searchData;
+            const count = allPlaces.length;
+            const totalFetched = allPlacesRaw.length;
+
+            let html = '';
+
+            // Add header only on initial display
+            if (!append) {
+                // Show both total fetched and filtered count
+                const filterInfo = count < totalFetched
+                    ? `${count} מקומות (מתוך ${totalFetched} שנמצאו)`
+                    : `${count} מקומות`;
+
+                // Show active filters
+                const closedSaturdayChecked = document.getElementById('closedSaturday').checked;
+                const openNowChecked = document.getElementById('openNow').checked;
+                let activeFilters = [];
+                if (closedSaturdayChecked) activeFilters.push('🗓️ סגור בשבת');
+                if (openNowChecked) activeFilters.push('🕐 פתוח עכשיו');
+                const filterBadges = activeFilters.length > 0
+                    ? `<div style="margin-top: 10px; font-size: 0.9em; color: #667eea;">סינונים פעילים: ${activeFilters.join(', ')}</div>`
+                    : '';
+
+                html = `
+                    <div class="results-header">
+                        <h2 style="margin-bottom: 15px;">📍 ${location.formattedAddress}</h2>
+                        <div class="results-info">
+                            <div class="info-item">
+                                <span class="info-icon">🗺️</span>
+                                <div>
+                                    <div class="info-text">קואורדינטות</div>
+                                    <div class="info-value">${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-icon">📊</span>
+                                <div>
+                                    <div class="info-text">מקומות שנמצאו</div>
+                                    <div class="info-value">${filterInfo}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-icon">🔧</span>
+                                <div>
+                                    <div class="info-text">סינון</div>
+                                    <div class="info-value">≥${filters.minRating}⭐, ≥${filters.minReviews}💬</div>
+                                </div>
+                            </div>
+                        </div>
+                        ${filterBadges}
+                    </div>
+                `;
+            }
+
+            if (count === 0 && !append) {
+                html += `
+                    <div class="no-results">
+                        <div class="no-results-icon">🤷</div>
+                        <h3>לא נמצאו מקומות</h3>
+                        <p>נסה להגדיל את רדיוס החיפוש או להוריד את סינון הדירוג/ביקורות</p>
+                    </div>
+                `;
+            } else {
+                // Get the places to display
+                const endIndex = currentOffset + resultsPerPage;
+                const placesToShow = allPlaces.slice(currentOffset, endIndex);
+
+                if (!append) {
+                    // Create grid container
+                    html += `<div class="places-grid" id="places-grid">`;
+                }
+
+                // Build cards
+                let cardsHtml = '';
+                placesToShow.forEach((place, idx) => {
+                    const index = currentOffset + idx;
+                    const fullStars = Math.floor(place.rating);
+                    const hasHalf = place.rating % 1 >= 0.5;
+                    let stars = '★'.repeat(fullStars);
+                    if (hasHalf) stars += '½';
+
+                    const distance = place.distance < 1
+                        ? `${Math.round(place.distance * 1000)}מ'`
+                        : `${place.distance.toFixed(2)}ק"מ`;
+
+                    // Get all opening hours
+                    // Google API returns weekday_text starting with Sunday (0=Sunday, 1=Monday, ..., 6=Saturday)
+                    const dayNames = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'שבת'];
+                    let hoursHtml = '';
+
+                    if (place.openingHours && place.openingHours.length > 0) {
+                        place.openingHours.forEach((dayHours, idx) => {
+                            const cleanHours = dayHours
+                                .replace(/Monday:|Tuesday:|Wednesday:|Thursday:|Friday:|Saturday:|Sunday:/gi, '')
+                                .replace(/יום שני:|יום שלישי:|יום רביעי:|יום חמישי:|יום שישי:|שבת:|יום ראשון:/gi, '')
+                                .trim();
+
+                            const isSaturday = idx === 6; // Saturday is index 6 (Sunday=0)
+                            hoursHtml += `
+                                <div class="hours-day ${isSaturday ? 'saturday' : ''}">
+                                    <span class="hours-day-name">${dayNames[idx]}</span>
+                                    <span class="hours-day-time">${cleanHours}</span>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        hoursHtml = '<div class="hours-day"><span class="hours-day-time">אין מידע על שעות פתיחה</span></div>';
+                    }
+
+                    cardsHtml += `
+                        <div class="place-card">
+                            <div class="place-header">
+                                <div>
+                                    <div class="place-name">${place.name}</div>
+                                    <div class="place-address">${place.address}</div>
+                                </div>
+                                <div class="place-number">${index + 1}</div>
+                            </div>
+
+                            <div class="place-rating">
+                                <div class="stars">${stars}</div>
+                                <div class="rating-text">${place.rating.toFixed(1)}</div>
+                                <div class="reviews">(${place.reviewCount} ביקורות)</div>
+                            </div>
+
+                            <div class="place-details">
+                                <div class="detail-item">
+                                    <div class="detail-icon">📏</div>
+                                    <div class="detail-text">${distance} מרחק</div>
+                                </div>
+                                ${place.phone ? `
+                                <div class="detail-item">
+                                    <div class="detail-icon">📞</div>
+                                    <div class="detail-text" dir="ltr" style="text-align: right;">${place.phone}</div>
+                                </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="hours-section">
+                                <div class="hours-toggle" onclick="toggleHours(this)">
+                                    <span class="hours-toggle-icon">▼</span>
+                                    <span>שעות פתיחה</span>
+                                </div>
+                                <div class="hours-list">
+                                    ${hoursHtml}
+                                </div>
+                            </div>
+
+                            <a href="${place.googleMapsUrl}" target="_blank" class="map-link">🗺️ פתח במפות גוגל</a>
+                        </div>
+                    `;
+                });
+
+                if (append) {
+                    document.getElementById('places-grid').insertAdjacentHTML('beforeend', cardsHtml);
+                } else {
+                    html += cardsHtml + '</div>';
+                }
+
+                // Add "Show More" button if there are more results
+                const hasMore = endIndex < allPlaces.length;
+                if (hasMore) {
+                    const remaining = allPlaces.length - endIndex;
+                    const showMoreHtml = `
+                        <div class="show-more-container">
+                            <button class="show-more-button" onclick="showMore()">
+                                📄 הצג עוד (${remaining} נוספים)
+                            </button>
+                        </div>
+                    `;
+                    if (!append) {
+                        html += showMoreHtml;
+                    } else {
+                        const existing = document.querySelector('.show-more-container');
+                        if (existing) existing.remove();
+                        document.querySelector('.places-grid').insertAdjacentHTML('afterend', showMoreHtml);
+                    }
+                }
+            }
+
+            // Only set innerHTML if not appending
+            if (!append) {
+                results.innerHTML = html;
+                results.classList.add('active');
+                // Scroll to results
+                results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function showMore() {
+            currentOffset += resultsPerPage;
+            displayResults(true);
+        }
+
+        function toggleHours(element) {
+            const toggle = element;
+            const hoursList = toggle.nextElementSibling;
+
+            toggle.classList.toggle('expanded');
+            hoursList.classList.toggle('visible');
+        }
+    </script>
+</body>
+</html>

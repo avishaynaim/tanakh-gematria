@@ -1,0 +1,20 @@
+{
+  "name": "places-api",
+  "version": "1.0.0",
+  "description": "API service for finding computer-friendly cafes and workspaces using Google Places API",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "client": "node client.js"
+  },
+  "keywords": ["api", "google-places", "cafes", "workspaces"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.4.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2"
+  }
+}
