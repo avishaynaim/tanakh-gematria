@@ -2,7 +2,6 @@
   "appId": "com.placesearch.smartalgo",
   "appName": "Places Search",
   "webDir": "public",
-  "bundledWebRuntime": false,
   "server": {
     "androidScheme": "http",
     "hostname": "localhost",

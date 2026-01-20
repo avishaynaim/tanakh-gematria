@@ -39,20 +39,41 @@ jobs:
         cp public/icons/icon-template.svg public/icons/icon-192x192.png || true
         cp public/icons/icon-template.svg public/icons/icon-512x512.png || true
 
-    - name: Debug - List installed packages
+    - name: Debug - Show environment
       run: |
+        echo "=== Node version ==="
+        node --version
+        echo "=== NPM version ==="
+        npm --version
+        echo "=== Capacitor CLI version ==="
+        npx cap --version
         echo "=== Installed packages ==="
-        npm list capacitor-nodejs || true
+        npm list --depth=0
         echo "=== Capacitor config ==="
         cat capacitor.config.json
         echo "=== nodejs directory ==="
-        ls -la public/nodejs/ || true
+        ls -la public/nodejs/ || echo "nodejs dir not found"
+        echo "=== webDir (public) contents ==="
+        ls -la public/
 
-    - name: Clean Android platform
+    - name: Temporarily remove nodejs plugin for cap add
+      run: |
+        npm uninstall capacitor-nodejs || true
+        # Also remove from capacitor config temporarily
+        node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('capacitor.config.json')); delete c.plugins.CapacitorNodeJS; fs.writeFileSync('capacitor.config.json', JSON.stringify(c, null, 2));"
+        cat capacitor.config.json
+
+    - name: Add Android platform
       run: |
         rm -rf android
-        echo "=== Running cap add android ==="
-        npx cap add android --verbose 2>&1 || (echo "cap add failed, trying without nodejs plugin..." && npm uninstall capacitor-nodejs && npx cap add android)
+        npx cap add android
+
+    - name: Reinstall nodejs plugin
+      run: |
+        npm install https://github.com/hampoelz/capacitor-nodejs/releases/download/v1.0.0-beta.9/capacitor-nodejs.tgz
+        # Restore plugin config
+        node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('capacitor.config.json')); c.plugins=c.plugins||{}; c.plugins.CapacitorNodeJS={nodeDir:'nodejs'}; fs.writeFileSync('capacitor.config.json', JSON.stringify(c, null, 2));"
+        cat capacitor.config.json
 
     - name: Sync Capacitor
       run: |
