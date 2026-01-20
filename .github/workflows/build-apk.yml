@@ -41,20 +41,14 @@ jobs:
 
     - name: Debug - Show environment
       run: |
-        echo "=== Node version ==="
-        node --version
-        echo "=== NPM version ==="
-        npm --version
-        echo "=== Capacitor CLI version ==="
-        npx cap --version
-        echo "=== Installed packages ==="
-        npm list --depth=0
-        echo "=== Capacitor config ==="
-        cat capacitor.config.json
-        echo "=== nodejs directory ==="
-        ls -la public/nodejs/ || echo "nodejs dir not found"
-        echo "=== webDir (public) contents ==="
-        ls -la public/
+        echo "=== Node version ===" && node --version || true
+        echo "=== NPM version ===" && npm --version || true
+        echo "=== Capacitor CLI version ===" && npx cap --version || true
+        echo "=== Installed packages ===" && npm list --depth=0 || true
+        echo "=== Capacitor config ===" && cat capacitor.config.json || true
+        echo "=== nodejs directory ===" && ls -la public/nodejs/ || echo "nodejs dir not found"
+        echo "=== webDir (public) contents ===" && ls -la public/ || true
+        echo "=== Debug complete ==="
 
     - name: Temporarily remove nodejs plugin for cap add
       run: |
