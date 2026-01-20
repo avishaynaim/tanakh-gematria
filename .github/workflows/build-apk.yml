@@ -26,13 +26,15 @@ jobs:
 
     - name: Install dependencies (without capacitor-nodejs)
       run: |
-        # Temporarily remove capacitor-nodejs from package.json
+        # Temporarily remove capacitor-nodejs from package.json and ESM type
         node -e "
           const fs = require('fs');
           const pkg = JSON.parse(fs.readFileSync('package.json'));
           delete pkg.dependencies['capacitor-nodejs'];
+          delete pkg.type;
           fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
         "
+        cat package.json
         npm install
         npm install -g @capacitor/cli
 
@@ -72,7 +74,17 @@ jobs:
     - name: Add Android platform
       run: |
         rm -rf android
-        npx cap add android
+        echo "=== Contents of webDir (public) ==="
+        ls -la public/
+        echo "=== capacitor.config.json ==="
+        cat capacitor.config.json
+        echo "=== package.json ==="
+        cat package.json
+        echo "=== @capacitor/cli version ==="
+        npx cap --version
+        echo "=== Running cap add android ==="
+        npx cap add android 2>&1
+        echo "=== cap add completed ==="
 
     - name: Install capacitor-nodejs plugin
       run: |
