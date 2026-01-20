@@ -39,10 +39,20 @@ jobs:
         cp public/icons/icon-template.svg public/icons/icon-192x192.png || true
         cp public/icons/icon-template.svg public/icons/icon-512x512.png || true
 
+    - name: Debug - List installed packages
+      run: |
+        echo "=== Installed packages ==="
+        npm list capacitor-nodejs || true
+        echo "=== Capacitor config ==="
+        cat capacitor.config.json
+        echo "=== nodejs directory ==="
+        ls -la public/nodejs/ || true
+
     - name: Clean Android platform
       run: |
         rm -rf android
-        npx cap add android
+        echo "=== Running cap add android ==="
+        npx cap add android --verbose 2>&1 || (echo "cap add failed, trying without nodejs plugin..." && npm uninstall capacitor-nodejs && npx cap add android)
 
     - name: Sync Capacitor
       run: |
