@@ -22,9 +22,8 @@
       "showSpinner": true,
       "spinnerColor": "#ffffff"
     },
-    "NodejsMobile": {
-      "nodeDir": "nodejs-project",
-      "nodeStartScript": "main.js"
+    "CapacitorNodeJS": {
+      "nodeDir": "nodejs"
     }
   }
 }

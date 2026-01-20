@@ -1728,51 +1728,53 @@
          * In web: uses relative paths
          */
         function getApiBaseUrl() {
-            // If we're in a mobile app (detected by nodejs-mobile bridge)
-            if (typeof nodejs !== 'undefined' && nodejs) {
-                return 'http://localhost:3000';
+            // If we're in a mobile app (detected by Capacitor)
+            if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+                return 'http://127.0.0.1:3000';
             }
             // In web/desktop mode, use relative URL (served by same origin)
             return '';
         }
 
         /**
-         * Initialize nodejs-mobile bridge for embedded server
+         * Initialize capacitor-nodejs bridge for embedded server
          * This handles communication between the WebView and embedded Node.js server
          */
-        function initializeNodejsMobileBridge() {
-            // Check if running in nodejs-mobile environment
-            if (typeof nodejs === 'undefined' || !nodejs) {
-                console.log('[App] Running in web mode - nodejs-mobile bridge not available');
+        async function initializeNodejsMobileBridge() {
+            // Check if running in Capacitor native environment
+            if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
+                console.log('[App] Running in web mode - capacitor-nodejs not available');
                 return;
             }
 
-            console.log('[nodejs-mobile] Bridge detected - app is running as Android APK');
+            console.log('[Capacitor] Native platform detected - initializing embedded Node.js');
 
-            // Listen for messages from Node.js server
-            if (nodejs.channel && nodejs.channel.on) {
-                nodejs.channel.on('message', (msg) => {
-                    if (msg === 'server-ready') {
-                        console.log('[nodejs-mobile] Embedded server is ready!');
-                        onEmbeddedServerReady();
-                    } else {
-                        console.log('[nodejs-mobile] Message from server:', msg);
-                    }
+            try {
+                // Import the NodeJS plugin
+                const { NodeJS } = await import('capacitor-nodejs');
+
+                // Listen for server-ready message
+                NodeJS.addListener('server-ready', (event) => {
+                    console.log('[Capacitor-NodeJS] Server is ready on port:', event.args[0]?.port);
+                    onEmbeddedServerReady();
                 });
-            }
 
-            // Start the embedded Node.js server
-            if (nodejs.start) {
-                console.log('[nodejs-mobile] Starting embedded Node.js server...');
-                try {
-                    nodejs.start('main.js', {
-                        // Optional: configure Node.js startup options
-                        // See nodejs-mobile documentation
-                    });
-                } catch (error) {
-                    console.error('[nodejs-mobile] Failed to start server:', error);
-                    showServerError('Failed to start embedded server');
-                }
+                // Listen for API key confirmation
+                NodeJS.addListener('api-key-set', (event) => {
+                    console.log('[Capacitor-NodeJS] API key configured');
+                    hideServerStatus();
+                });
+
+                // Wait for Node.js to be ready
+                await NodeJS.whenReady();
+                console.log('[Capacitor-NodeJS] Node.js runtime is ready');
+
+                // Store reference for later use
+                window.NodeJS = NodeJS;
+
+            } catch (error) {
+                console.error('[Capacitor-NodeJS] Failed to initialize:', error);
+                showServerError('Failed to start embedded server: ' + error.message);
             }
 
             // Set a timeout to show error if server doesn't start
@@ -1780,7 +1782,7 @@
                 if (!window.serverReady) {
                     showServerError('Server startup timeout - please restart the app');
                 }
-            }, 15000); // 15 second timeout
+            }, 20000); // 20 second timeout
         }
 
         /**
@@ -1795,20 +1797,41 @@
             if (!apiKey) {
                 console.log('[App] No API key found - user needs to enter it in settings');
                 showServerStatus('⚠️ הגדר מפתח API כדי להשתמש באפליקציה');
+                promptForApiKey();
                 return;
             }
 
             // Send API key to embedded server
-            if (nodejs && nodejs.channel && nodejs.channel.send) {
-                console.log('[nodejs-mobile] Sending API key to server...');
-                nodejs.channel.send({
-                    type: 'config',
-                    apiKey: apiKey
-                });
-            }
+            sendApiKeyToServer(apiKey);
+        }
 
-            // Hide loading indicator if shown
-            hideServerStatus();
+        /**
+         * Send API key to embedded Node.js server
+         */
+        async function sendApiKeyToServer(apiKey) {
+            if (window.NodeJS) {
+                console.log('[Capacitor-NodeJS] Sending API key to server...');
+                try {
+                    await window.NodeJS.send({
+                        eventName: 'set-api-key',
+                        args: [apiKey]
+                    });
+                    localStorage.setItem('googleApiKey', apiKey);
+                    hideServerStatus();
+                } catch (err) {
+                    console.error('[Capacitor-NodeJS] Failed to send API key:', err);
+                }
+            }
+        }
+
+        /**
+         * Prompt user to enter API key
+         */
+        function promptForApiKey() {
+            const apiKey = prompt('הזן את מפתח Google Places API שלך:');
+            if (apiKey && apiKey.trim()) {
+                sendApiKeyToServer(apiKey.trim());
+            }
         }
 
         /**

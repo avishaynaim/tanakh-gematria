@@ -1,0 +1,6 @@
+{
+  "name": "places-api-embedded",
+  "version": "1.0.0",
+  "main": "index.js",
+  "description": "Embedded Node.js server for Places Search Android app"
+}
