@@ -25,6 +25,6 @@
     "axios": "^1.13.2",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
-    "nodejs-mobile-cordova": "^0.9.0"
+    "nodejs-mobile-cordova": "^0.4.3"
   }
 }
