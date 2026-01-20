@@ -956,6 +956,22 @@
 
                 <button type="submit" class="search-button">🔍 חפש מקומות</button>
 
+                <!-- API Key Settings (for mobile app) -->
+                <div id="apiKeySection" style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span>🔑</span>
+                        <strong>Google API Key</strong>
+                    </div>
+                    <input type="password" id="googleApiKey" placeholder="הזן את מפתח ה-API שלך"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 10px;">
+                    <button type="button" onclick="saveApiKey()" style="width: 100%; padding: 10px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        💾 שמור מפתח API
+                    </button>
+                    <p style="font-size: 0.8em; color: #666; margin-top: 8px;">
+                        קבל מפתח API מ-<a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
+                    </p>
+                </div>
+
                 <div class="form-row" style="margin-top: 15px; gap: 10px;">
                     <button type="button" class="settings-button save-button" onclick="saveSettings()">💾 שמור הגדרות</button>
                     <button type="button" class="settings-button clear-button" onclick="clearToDefault()">🔄 איפוס לברירת מחדל</button>
@@ -1297,7 +1313,19 @@
 
             } catch (error) {
                 loading.classList.remove('active');
-                errorDiv.textContent = `❌ שגיאה: ${error.message}`;
+
+                // Provide helpful error messages
+                let errorMessage = error.message;
+                if (error.message.includes('API_KEY_NOT_SET') || error.message.includes('API key')) {
+                    errorMessage = 'נא להזין מפתח Google API בהגדרות למטה';
+                    showApiKeySection();
+                } else if (error.message.includes('DOCTYPE') || error.message.includes('not valid JSON')) {
+                    errorMessage = 'השרת לא מגיב - נסה לרענן את האפליקציה';
+                } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMessage = 'בעיית חיבור - בדוק את החיבור לאינטרנט';
+                }
+
+                errorDiv.textContent = `❌ שגיאה: ${errorMessage}`;
                 errorDiv.classList.add('active');
             }
         });
@@ -1719,6 +1747,10 @@
         // Load settings on page load
         window.addEventListener('DOMContentLoaded', () => {
             loadSettings();
+            // Show API key section for mobile app
+            if (typeof Capacitor !== 'undefined') {
+                showApiKeySection();
+            }
             initializeNodejsMobileBridge();
         });
 
@@ -1726,7 +1758,15 @@
          * Get the correct API base URL based on environment
          * Can be configured via localStorage for mobile apps
          */
+        // Global flag for embedded server status
+        let embeddedServerReady = false;
+        let embeddedServerPort = 3000;
+
         function getApiBaseUrl() {
+            // If embedded server is ready, use it
+            if (embeddedServerReady) {
+                return `http://127.0.0.1:${embeddedServerPort}`;
+            }
             // Check for custom server URL in localStorage
             const customUrl = localStorage.getItem('apiServerUrl');
             if (customUrl) {
@@ -1737,12 +1777,94 @@
         }
 
         /**
-         * Initialize mobile app (placeholder for future embedded server)
+         * Initialize Capacitor NodeJS bridge for embedded server
          */
-        function initializeNodejsMobileBridge() {
-            // Currently just a WebView wrapper
-            // Embedded Node.js server will be added in future version
-            console.log('[App] Mobile WebView mode - use external server');
+        async function initializeNodejsMobileBridge() {
+            console.log('[App] Initializing NodeJS bridge...');
+
+            // Check if running in Capacitor environment
+            if (typeof Capacitor === 'undefined' || !Capacitor.Plugins || !Capacitor.Plugins.NodeJS) {
+                console.log('[App] Not running in Capacitor or NodeJS plugin not available - using external server');
+                return;
+            }
+
+            const NodeJS = Capacitor.Plugins.NodeJS;
+            showServerStatus('🚀 מפעיל שרת מקומי...');
+
+            try {
+                // Listen for server ready message
+                await NodeJS.addListener('server-ready', (data) => {
+                    console.log('[App] Embedded server ready on port:', data.port);
+                    embeddedServerReady = true;
+                    embeddedServerPort = data.port || 3000;
+                    hideServerStatus();
+
+                    // Send API key if available
+                    const apiKey = localStorage.getItem('googleApiKey');
+                    if (apiKey) {
+                        NodeJS.send({ eventName: 'set-api-key', args: [apiKey] });
+                    }
+                });
+
+                // Listen for API key confirmation
+                await NodeJS.addListener('api-key-set', (data) => {
+                    console.log('[App] API key configured:', data.success);
+                });
+
+                // Start the Node.js engine (it auto-starts, but we can listen for events)
+                console.log('[App] Waiting for embedded server to start...');
+
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    if (!embeddedServerReady) {
+                        console.warn('[App] Embedded server did not start in time');
+                        hideServerStatus();
+                        showServerError('⚠️ השרת המקומי לא הופעל - נסה לרענן את האפליקציה');
+                    }
+                }, 10000);
+
+            } catch (error) {
+                console.error('[App] NodeJS bridge error:', error);
+                hideServerStatus();
+                showServerError('❌ שגיאה בהפעלת השרת המקומי');
+            }
+        }
+
+        /**
+         * Save API key to localStorage and send to embedded server
+         */
+        function saveApiKey() {
+            const apiKeyInput = document.getElementById('googleApiKey');
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!apiKey) {
+                alert('נא להזין מפתח API');
+                return;
+            }
+
+            localStorage.setItem('googleApiKey', apiKey);
+
+            // Send to embedded server if available
+            if (typeof Capacitor !== 'undefined' && Capacitor.Plugins && Capacitor.Plugins.NodeJS) {
+                Capacitor.Plugins.NodeJS.send({ eventName: 'set-api-key', args: [apiKey] });
+            }
+
+            alert('✅ מפתח ה-API נשמר בהצלחה!');
+        }
+
+        /**
+         * Show API key section if running in Capacitor
+         */
+        function showApiKeySection() {
+            const section = document.getElementById('apiKeySection');
+            if (section) {
+                section.style.display = 'block';
+                // Load saved API key
+                const savedKey = localStorage.getItem('googleApiKey');
+                if (savedKey) {
+                    document.getElementById('googleApiKey').value = savedKey;
+                }
+            }
         }
 
         /**
