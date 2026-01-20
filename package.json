@@ -18,13 +18,12 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/cli": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
+    "@capacitor/android": "^5.7.0",
+    "@capacitor/cli": "^5.7.0",
+    "@capacitor/core": "^5.7.0",
     "@googlemaps/google-maps-services-js": "^3.4.0",
     "axios": "^1.13.2",
     "dotenv": "^16.4.5",
-    "express": "^4.18.2",
-    "capacitor-nodejs": "https://github.com/hampoelz/Capacitor-NodeJS/releases/download/v1.0.0-beta.8/capacitor-nodejs.tgz"
+    "express": "^4.18.2"
   }
 }

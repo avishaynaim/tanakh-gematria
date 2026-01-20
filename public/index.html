@@ -1724,114 +1724,25 @@
 
         /**
          * Get the correct API base URL based on environment
-         * In mobile (Android APK): uses localhost:3000
-         * In web: uses relative paths
+         * Can be configured via localStorage for mobile apps
          */
         function getApiBaseUrl() {
-            // If we're in a mobile app (detected by Capacitor)
-            if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
-                return 'http://127.0.0.1:3000';
+            // Check for custom server URL in localStorage
+            const customUrl = localStorage.getItem('apiServerUrl');
+            if (customUrl) {
+                return customUrl;
             }
-            // In web/desktop mode, use relative URL (served by same origin)
+            // Default: use relative URL (same origin)
             return '';
         }
 
         /**
-         * Initialize capacitor-nodejs bridge for embedded server
-         * This handles communication between the WebView and embedded Node.js server
+         * Initialize mobile app (placeholder for future embedded server)
          */
-        async function initializeNodejsMobileBridge() {
-            // Check if running in Capacitor native environment
-            if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
-                console.log('[App] Running in web mode - capacitor-nodejs not available');
-                return;
-            }
-
-            console.log('[Capacitor] Native platform detected - initializing embedded Node.js');
-
-            try {
-                // Import the NodeJS plugin
-                const { NodeJS } = await import('capacitor-nodejs');
-
-                // Listen for server-ready message
-                NodeJS.addListener('server-ready', (event) => {
-                    console.log('[Capacitor-NodeJS] Server is ready on port:', event.args[0]?.port);
-                    onEmbeddedServerReady();
-                });
-
-                // Listen for API key confirmation
-                NodeJS.addListener('api-key-set', (event) => {
-                    console.log('[Capacitor-NodeJS] API key configured');
-                    hideServerStatus();
-                });
-
-                // Wait for Node.js to be ready
-                await NodeJS.whenReady();
-                console.log('[Capacitor-NodeJS] Node.js runtime is ready');
-
-                // Store reference for later use
-                window.NodeJS = NodeJS;
-
-            } catch (error) {
-                console.error('[Capacitor-NodeJS] Failed to initialize:', error);
-                showServerError('Failed to start embedded server: ' + error.message);
-            }
-
-            // Set a timeout to show error if server doesn't start
-            setTimeout(() => {
-                if (!window.serverReady) {
-                    showServerError('Server startup timeout - please restart the app');
-                }
-            }, 20000); // 20 second timeout
-        }
-
-        /**
-         * Called when embedded server is ready
-         */
-        function onEmbeddedServerReady() {
-            window.serverReady = true;
-            console.log('[App] Embedded server ready - enabling search functionality');
-
-            // Get API key from localStorage
-            const apiKey = localStorage.getItem('googleApiKey');
-            if (!apiKey) {
-                console.log('[App] No API key found - user needs to enter it in settings');
-                showServerStatus('⚠️ הגדר מפתח API כדי להשתמש באפליקציה');
-                promptForApiKey();
-                return;
-            }
-
-            // Send API key to embedded server
-            sendApiKeyToServer(apiKey);
-        }
-
-        /**
-         * Send API key to embedded Node.js server
-         */
-        async function sendApiKeyToServer(apiKey) {
-            if (window.NodeJS) {
-                console.log('[Capacitor-NodeJS] Sending API key to server...');
-                try {
-                    await window.NodeJS.send({
-                        eventName: 'set-api-key',
-                        args: [apiKey]
-                    });
-                    localStorage.setItem('googleApiKey', apiKey);
-                    hideServerStatus();
-                } catch (err) {
-                    console.error('[Capacitor-NodeJS] Failed to send API key:', err);
-                }
-            }
-        }
-
-        /**
-         * Prompt user to enter API key
-         */
-        function promptForApiKey() {
-            const apiKey = prompt('הזן את מפתח Google Places API שלך:');
-            if (apiKey && apiKey.trim()) {
-                sendApiKeyToServer(apiKey.trim());
-            }
+        function initializeNodejsMobileBridge() {
+            // Currently just a WebView wrapper
+            // Embedded Node.js server will be added in future version
+            console.log('[App] Mobile WebView mode - use external server');
         }
 
         /**
