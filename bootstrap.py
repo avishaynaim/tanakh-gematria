@@ -1,51 +1,47 @@
 import os
 import sys
-import urllib.request
 from pathlib import Path
 
 DB_PATH = Path(os.environ.get("DB_PATH", "tanakh.sqlite"))
-DB_URL = os.environ.get(
-    "DB_URL",
-    "https://drive.google.com/uc?export=download&id=1N7OSbfhYcAW97nhhxbLjlmn_oUOmpfcP",
-)
-
-# אם הקובץ לא קיים / קטן מדי (LFS pointer) -> להוריד מחדש
+GDRIVE_ID = os.environ.get("GDRIVE_ID", "1N7OSbfhYcAW97nhhxbLjlmn_oUOmpfcP")
 MIN_BYTES = 50_000_000  # 50MB
 
 def size_ok(p: Path) -> bool:
     return p.exists() and p.stat().st_size >= MIN_BYTES
 
-def download(url: str, dest: Path):
-    print(f"[bootstrap] Downloading DB from: {url}", flush=True)
-    dest_tmp = dest.with_suffix(dest.suffix + ".tmp")
-    if dest_tmp.exists():
-        dest_tmp.unlink()
+def is_sqlite(p: Path) -> bool:
+    if not p.exists() or p.stat().st_size < 16:
+        return False
+    with open(p, "rb") as f:
+        return f.read(16) == b"SQLite format 3\x00"
 
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=120) as r, open(dest_tmp, "wb") as f:
-        while True:
-            chunk = r.read(1024 * 1024)
-            if not chunk:
-                break
-            f.write(chunk)
+def download_with_gdown(file_id: str, dest: Path) -> None:
+    import gdown
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    if tmp.exists():
+        tmp.unlink()
+    url = f"https://drive.google.com/uc?id={file_id}"
+    print(f"[bootstrap] Downloading from Google Drive id={file_id}", flush=True)
+    gdown.download(url, str(tmp), quiet=False, fuzzy=True)
+    tmp.replace(dest)
+    print(f"[bootstrap] Downloaded: {dest} ({dest.stat().st_size} bytes)", flush=True)
 
-    dest_tmp.replace(dest)
-    print(f"[bootstrap] DB saved: {dest} ({dest.stat().st_size} bytes)", flush=True)
-
-def main():
-    if size_ok(DB_PATH):
-        print(f"[bootstrap] DB exists and size ok: {DB_PATH} ({DB_PATH.stat().st_size} bytes)", flush=True)
+def main() -> int:
+    if size_ok(DB_PATH) and is_sqlite(DB_PATH):
+        print(f"[bootstrap] DB OK: {DB_PATH} ({DB_PATH.stat().st_size} bytes)", flush=True)
         return 0
 
-    print(f"[bootstrap] DB missing/small -> will download. Current: "
-          f"{DB_PATH.stat().st_size if DB_PATH.exists() else 0} bytes", flush=True)
+    if DB_PATH.exists():
+        print(f"[bootstrap] DB invalid/small: {DB_PATH} ({DB_PATH.stat().st_size} bytes). Re-downloading...", flush=True)
+        try:
+            DB_PATH.unlink()
+        except Exception:
+            pass
 
-    download(DB_URL, DB_PATH)
+    download_with_gdown(GDRIVE_ID, DB_PATH)
 
-    # sanity: ensure it's big enough
-    if not size_ok(DB_PATH):
-        print("[bootstrap] ERROR: DB downloaded but still too small. "
-              "Check Google Drive sharing permissions (Anyone with link).", flush=True)
+    if not (size_ok(DB_PATH) and is_sqlite(DB_PATH)):
+        print("[bootstrap] ERROR: downloaded file is not a valid SQLite DB. Check Drive sharing (Anyone with link).", flush=True)
         return 2
 
     return 0
