@@ -30,6 +30,38 @@
     .footer{margin-top:10px;color:#6b7280;font-size:12px}
     .error{color:#b91c1c;font-size:13px;margin-top:8px}
     .note{color:#374151;font-size:13px;margin-top:10px}
+    /* Tab Navigation */
+    .tabs{display:flex;gap:0;margin-bottom:0;background:#fff;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .tab{flex:1;padding:14px 20px;text-align:center;cursor:pointer;font-weight:600;font-size:14px;color:#6b7280;border-bottom:3px solid transparent;transition:all .2s}
+    .tab:hover{background:#f6f7fb;color:#374151}
+    .tab.active{color:#2563eb;border-bottom-color:#2563eb;background:#fff}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .card.no-top-radius{border-radius:0 0 14px 14px;margin-top:0}
+    /* Histogram Styles */
+    .histogram-container{position:relative;width:100%;overflow-x:auto;padding-bottom:20px}
+    .histogram{display:flex;align-items:flex-end;gap:1px;min-height:300px;padding:20px 10px 40px;position:relative}
+    .histogram-bar{background:linear-gradient(to top,#2563eb,#3b82f6);min-width:3px;cursor:pointer;border-radius:2px 2px 0 0;transition:background .2s,transform .1s;position:relative}
+    .histogram-bar:hover{background:linear-gradient(to top,#1d4ed8,#2563eb);transform:scaleX(1.5)}
+    .histogram-axis{position:absolute;bottom:0;left:10px;right:10px;border-top:2px solid #e5e7eb;height:30px}
+    .histogram-label{font-size:11px;color:#6b7280;text-align:center;padding-top:8px}
+    .histogram-stats{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+    .stat-item{background:#eef2ff;padding:10px 16px;border-radius:10px}
+    .stat-value{font-size:20px;font-weight:700;color:#2563eb}
+    .stat-label{font-size:12px;color:#6b7280;margin-top:2px}
+    /* Tooltip */
+    .tooltip{position:fixed;background:#111827;color:#fff;padding:12px 16px;border-radius:10px;font-size:13px;max-width:400px;z-index:1000;box-shadow:0 10px 40px rgba(0,0,0,.3);display:none;pointer-events:none}
+    .tooltip.visible{display:block;pointer-events:auto}
+    .tooltip-header{font-weight:700;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #374151}
+    .tooltip-count{color:#93c5fd;font-size:12px}
+    .tooltip-verses{max-height:200px;overflow-y:auto;margin-top:8px}
+    .tooltip-verse{padding:8px;margin:4px 0;background:#1f2937;border-radius:6px;cursor:pointer;transition:background .2s}
+    .tooltip-verse:hover{background:#374151}
+    .tooltip-ref{font-weight:600;color:#93c5fd;margin-bottom:4px}
+    .tooltip-text{font-size:12px;line-height:1.5;color:#d1d5db}
+    .loading-histogram{text-align:center;padding:40px;color:#6b7280}
+    .loading-histogram .spinner{border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px}
+    @keyframes spin{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
@@ -39,7 +71,15 @@
 </header>
 
 <main>
-  <div class="card">
+  <!-- Tab Navigation -->
+  <div class="tabs">
+    <div class="tab active" data-tab="search">🔍 חיפוש גימטריה</div>
+    <div class="tab" data-tab="histogram">📊 היסטוגרמה לפי גימטריה</div>
+  </div>
+
+  <!-- Search Tab Content -->
+  <div id="searchTab" class="tab-content active">
+  <div class="card no-top-radius">
     <div class="row">
       <div>
         <label for="mode">מצב חיפוש</label>
@@ -113,6 +153,29 @@
     <div class="results" id="results"></div>
     <div class="footer" id="footer"></div>
   </div>
+  </div><!-- End Search Tab -->
+
+  <!-- Histogram Tab Content -->
+  <div id="histogramTab" class="tab-content">
+    <div class="card no-top-radius">
+      <h2 style="margin:0 0 16px;font-size:18px;color:#111827">📊 היסטוגרמה: פסוקים לפי ערך גימטריה</h2>
+      <p class="hint" style="margin-bottom:16px">כל עמודה מייצגת ערך גימטריה. רחף מעל עמודה לראות את הפסוקים. לחץ על פסוק לחיפוש מהיר.</p>
+
+      <div id="histogramStats" class="histogram-stats"></div>
+
+      <div id="histogramLoading" class="loading-histogram">
+        <div class="spinner"></div>
+        <div>טוען נתוני היסטוגרמה...</div>
+      </div>
+
+      <div id="histogramContainer" class="histogram-container" style="display:none">
+        <div id="histogram" class="histogram"></div>
+      </div>
+    </div>
+  </div><!-- End Histogram Tab -->
+
+  <!-- Tooltip for histogram -->
+  <div id="tooltip" class="tooltip"></div>
 </main>
 
 <script>
@@ -263,6 +326,161 @@ $("value").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch()
 $("text").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch(); });
 
 syncMode();
+
+// ========== Tab Navigation ==========
+const tabs = document.querySelectorAll('.tab');
+const tabContents = document.querySelectorAll('.tab-content');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const targetTab = tab.dataset.tab;
+
+    // Update active tab
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    // Show corresponding content
+    tabContents.forEach(content => content.classList.remove('active'));
+    document.getElementById(targetTab + 'Tab').classList.add('active');
+
+    // Load histogram data on first view
+    if (targetTab === 'histogram' && !histogramLoaded) {
+      loadHistogram();
+    }
+  });
+});
+
+// ========== Histogram ==========
+let histogramData = [];
+let histogramLoaded = false;
+const tooltip = document.getElementById('tooltip');
+
+async function loadHistogram() {
+  const loading = document.getElementById('histogramLoading');
+  const container = document.getElementById('histogramContainer');
+  const statsDiv = document.getElementById('histogramStats');
+
+  try {
+    const res = await fetch('/histogram');
+    if (!res.ok) throw new Error('Failed to load histogram data');
+
+    histogramData = await res.json();
+    histogramLoaded = true;
+
+    // Calculate stats
+    const totalVerses = histogramData.reduce((sum, b) => sum + b.count, 0);
+    const uniqueValues = histogramData.length;
+    const maxCount = Math.max(...histogramData.map(b => b.count));
+    const minGem = histogramData[0]?.gematria || 0;
+    const maxGem = histogramData[histogramData.length - 1]?.gematria || 0;
+
+    // Display stats
+    statsDiv.innerHTML = `
+      <div class="stat-item"><div class="stat-value">${totalVerses.toLocaleString()}</div><div class="stat-label">סה״כ פסוקים</div></div>
+      <div class="stat-item"><div class="stat-value">${uniqueValues.toLocaleString()}</div><div class="stat-label">ערכי גימטריה שונים</div></div>
+      <div class="stat-item"><div class="stat-value">${minGem.toLocaleString()} - ${maxGem.toLocaleString()}</div><div class="stat-label">טווח ערכים</div></div>
+      <div class="stat-item"><div class="stat-value">${maxCount}</div><div class="stat-label">מקסימום פסוקים לערך</div></div>
+    `;
+
+    // Render histogram
+    renderHistogram(maxCount);
+
+    loading.style.display = 'none';
+    container.style.display = 'block';
+
+  } catch (e) {
+    loading.innerHTML = `<div class="error">שגיאה בטעינת נתונים: ${e.message}</div>`;
+  }
+}
+
+function renderHistogram(maxCount) {
+  const histogramDiv = document.getElementById('histogram');
+  histogramDiv.innerHTML = '';
+
+  const height = 250; // max bar height in pixels
+
+  histogramData.forEach((bucket, idx) => {
+    const bar = document.createElement('div');
+    bar.className = 'histogram-bar';
+    const barHeight = Math.max(2, (bucket.count / maxCount) * height);
+    bar.style.height = barHeight + 'px';
+    bar.dataset.index = idx;
+
+    bar.addEventListener('mouseenter', (e) => showTooltip(e, bucket));
+    bar.addEventListener('mouseleave', hideTooltip);
+    bar.addEventListener('mousemove', moveTooltip);
+
+    histogramDiv.appendChild(bar);
+  });
+}
+
+function showTooltip(e, bucket) {
+  const versesHtml = bucket.verses.slice(0, 50).map(v => `
+    <div class="tooltip-verse" data-gematria="${bucket.gematria}" data-ref="${v.ref}">
+      <div class="tooltip-ref">${v.ref}</div>
+      <div class="tooltip-text">${v.text.substring(0, 100)}${v.text.length > 100 ? '...' : ''}</div>
+    </div>
+  `).join('');
+
+  const moreText = bucket.verses.length > 50 ? `<div style="color:#93c5fd;font-size:11px;margin-top:8px">...ועוד ${bucket.verses.length - 50} פסוקים</div>` : '';
+
+  tooltip.innerHTML = `
+    <div class="tooltip-header">
+      גימטריה: ${bucket.gematria.toLocaleString()}
+      <span class="tooltip-count">(${bucket.count} פסוקים)</span>
+    </div>
+    <div class="tooltip-verses">${versesHtml}${moreText}</div>
+  `;
+
+  // Add click handlers for verses
+  tooltip.querySelectorAll('.tooltip-verse').forEach(el => {
+    el.addEventListener('click', () => {
+      const gem = el.dataset.gematria;
+      // Switch to search tab and search for this gematria
+      tabs[0].click(); // Switch to search tab
+      $('mode').value = 'number';
+      syncMode();
+      $('value').value = gem;
+      $('kind').value = 'verse';
+      doSearch();
+      hideTooltip();
+    });
+  });
+
+  tooltip.classList.add('visible');
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  const tooltipRect = tooltip.getBoundingClientRect();
+  let x = e.clientX + 15;
+  let y = e.clientY + 15;
+
+  // Keep tooltip in viewport
+  if (x + tooltipRect.width > window.innerWidth - 20) {
+    x = e.clientX - tooltipRect.width - 15;
+  }
+  if (y + tooltipRect.height > window.innerHeight - 20) {
+    y = e.clientY - tooltipRect.height - 15;
+  }
+
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+
+function hideTooltip() {
+  // Small delay to allow clicking on tooltip content
+  setTimeout(() => {
+    if (!tooltip.matches(':hover')) {
+      tooltip.classList.remove('visible');
+    }
+  }, 100);
+}
+
+// Keep tooltip visible when hovering over it
+tooltip.addEventListener('mouseleave', () => {
+  tooltip.classList.remove('visible');
+});
 </script>
 </body>
 </html>
