@@ -9,8 +9,21 @@ from pydantic import BaseModel
 
 from .search import search
 from .gematria import gematria
+from .bootstrap_db import ensure_db
 
-app = FastAPI(title="Tanakh Gematria Finder", version="1.5.0")
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from .bootstrap_db import ensure_db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # runs on startup
+    ensure_db()
+    yield
+    # runs on shutdown (nothing needed)
+
+app = FastAPI(lifespan=lifespan)
 
 class HitOut(BaseModel):
     kind: str
@@ -23,6 +36,7 @@ class HitOut(BaseModel):
     match_range: Optional[str] = None
 
 _UI_PATH = Path(__file__).with_name("ui.html")
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -43,7 +57,8 @@ def api_search(
     # ברירת מחדל: להחזיר הכול (ללא LIMIT). אפשר להעביר limit=50 וכו'
     limit: Optional[int] = Query(None, ge=1, le=200000),
     offset: int = Query(0, ge=0),
-    db: str = Query("tanakh.sqlite"),
+    db = os.environ.get("DB_PATH", "tanakh.sqlite")
+    # db: str = Query("tanakh.sqlite"),
 ):
     if value is None:
         if not text:
