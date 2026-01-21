@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>חיפוש גימטריה בתנ״ך</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; background:#f6f7fb;}
+    header{background:#111827;color:#fff;padding:16px 18px;}
+    header h1{margin:0;font-size:20px;font-weight:700;}
+    header p{margin:6px 0 0;opacity:.9;font-size:13px}
+    main{padding:16px;max-width:1100px;margin:0 auto;}
+    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px;margin-bottom:14px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+    label{font-size:13px;color:#374151;display:block;margin-bottom:6px}
+    input,select{padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;min-width:180px;font-size:14px;background:#fff}
+    input[type="number"]{min-width:160px}
+    input[type="text"]{min-width:260px}
+    button{padding:10px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .hint{font-size:12px;color:#6b7280;margin-top:10px;line-height:1.5}
+    .results{margin-top:10px}
+    .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;margin-inline-start:8px}
+    .hit{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:10px}
+    .hit .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .ref{font-weight:700;color:#111827}
+    .meta{color:#6b7280;font-size:12px}
+    .text{margin-top:8px;font-size:16px;line-height:1.7;color:#111827}
+    .small{margin-top:6px;font-size:13px;color:#374151}
+    .footer{margin-top:10px;color:#6b7280;font-size:12px}
+    .error{color:#b91c1c;font-size:13px;margin-top:8px}
+    .note{color:#374151;font-size:13px;margin-top:10px}
+  </style>
+</head>
+<body>
+<header>
+  <h1>חיפוש גימטריה בתנ״ך</h1>
+  <p>חפש לפי מספר או לפי טקסט בעברית (האפליקציה מחשבת גימטריה ואז מחפשת התאמות).</p>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="mode">מצב חיפוש</label>
+        <select id="mode">
+          <option value="number" selected>לפי מספר</option>
+          <option value="text">לפי טקסט בעברית</option>
+        </select>
+      </div>
+
+      <div id="numWrap">
+        <label for="value">מספר גימטריה</label>
+        <input id="value" type="number" min="0" placeholder="לדוגמה: 347" />
+      </div>
+
+      <div id="txtWrap" style="display:none;">
+        <label for="text">טקסט בעברית</label>
+        <input id="text" type="text" placeholder="לדוגמה: שלום" />
+      </div>
+
+      <div>
+        <label for="kind">סוג תוצאה</label>
+        <select id="kind">
+          <option value="">הכול</option>
+          <option value="verse">פסוקים</option>
+          <option value="word">מילים</option>
+          <option value="gram">רצפי מילים</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="n">אורך רצף (n)</label>
+        <select id="n">
+          <option value="">כל האורכים</option>
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="limit">מקסימום תוצאות</label>
+<select id="limit">
+  <option value="" selected>הכול (ברירת מחדל)</option>
+  <option value="25">25</option>
+  <option value="50">50</option>
+  <option value="100">100</option>
+  <option value="200">200</option>
+  <option value="500">500</option>
+  <option value="1000">1000</option>
+</select>
+      </div>
+
+      <div>
+        <button id="btn">חפש</button>
+      </div>
+    </div>
+
+    <div class="hint">
+      במצב "טקסט בעברית" האפליקציה מחשבת גימטריה (מתעלמת מניקוד/טעמים/פיסוק) ואז מחפשת.<br/>
+      הנתונים מגיעים מ־SQLite מקומי (tanakh.sqlite) בתוך הבאנדל.
+    </div>
+
+    <div id="calc" class="note" style="display:none;"></div>
+    <div id="err" class="error" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div class="meta" id="status">מוכן.</div>
+      <div class="meta">API: <code>/search</code> • Gematria: <code>/gematria</code> • Docs: <code>/docs</code></div>
+    </div>
+    <div class="results" id="results"></div>
+    <div class="footer" id="footer"></div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function showError(msg){
+  $("err").style.display = msg ? "block" : "none";
+  $("err").textContent = msg || "";
+}
+
+function showCalc(msg){
+  $("calc").style.display = msg ? "block" : "none";
+  $("calc").textContent = msg || "";
+}
+
+function kindLabel(k){
+  if(k === "verse") return "פסוק";
+  if(k === "word") return "מילה";
+  if(k === "gram") return "רצף";
+  return k;
+}
+
+function syncMode(){
+  const mode = $("mode").value;
+  $("numWrap").style.display = (mode === "number") ? "block" : "none";
+  $("txtWrap").style.display = (mode === "text") ? "block" : "none";
+  showCalc("");
+  showError("");
+}
+$("mode").addEventListener("change", syncMode);
+
+async function doSearch(){
+  showError("");
+  showCalc("");
+
+  const mode = $("mode").value;
+  const kind = $("kind").value;
+  const n = $("n").value;
+  const limit = $("limit").value;
+
+  const params = new URLSearchParams();
+  if(limit) params.set("limit", limit);
+  params.set("db", "tanakh.sqlite");
+  if(kind) params.set("kind", kind);
+  if(kind === "gram" && n) params.set("n", n);
+
+  let computed = null;
+
+  if(mode === "number"){
+    const value = $("value").value.trim();
+    if(!value){
+      showError("נא להזין מספר גימטריה.");
+      return;
+    }
+    params.set("value", value);
+  }else{
+    const text = $("text").value.trim();
+    if(!text){
+      showError("נא להזין טקסט בעברית.");
+      return;
+    }
+    // Ask server to compute gematria (so it's consistent with normalization)
+    try{
+      const gRes = await fetch("/gematria?text=" + encodeURIComponent(text));
+      if(!gRes.ok) throw new Error("לא הצלחתי לחשב גימטריה לטקסט.");
+      const g = await gRes.json();
+      computed = g.gematria;
+      showCalc(`הגימטריה של "${text}" היא: ${computed}`);
+    }catch(e){
+      showError(e.message || String(e));
+      return;
+    }
+    params.set("text", text);
+  }
+
+  $("btn").disabled = true;
+  $("status").textContent = "מחפש...";
+  $("results").innerHTML = "";
+  $("footer").textContent = "";
+
+  try{
+    const res = await fetch("/search?" + params.toString());
+    if(!res.ok){
+      const txt = await res.text();
+      throw new Error("שגיאת שרת: " + res.status + " " + txt);
+    }
+    const data = await res.json();
+
+    $("status").textContent = `נמצאו ${data.length} תוצאות.`;
+    if(data.length === 0){
+      $("results").innerHTML = "<div class='meta'>אין התאמות.</div>";
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    data.forEach(h => {
+  const div = document.createElement("div");
+  div.className = "hit";
+
+  const top = document.createElement("div");
+  top.className = "top";
+
+  const left = document.createElement("div");
+  // Reference is already Hebrew from backend
+  left.innerHTML = `<span class="ref">${h.ref}</span> <span class="pill">${kindLabel(h.kind)}${h.n ? " • n=" + h.n : ""}</span>`;
+
+  const right = document.createElement("div");
+  right.className = "meta";
+  right.textContent = "גימטריה: " + h.gematria;
+
+  top.appendChild(left);
+  top.appendChild(right);
+
+  const textDiv = document.createElement("div");
+  textDiv.className = "text";
+  textDiv.textContent = h.text; // Always full verse
+
+  div.appendChild(top);
+  div.appendChild(textDiv);
+
+  if(h.kind === "word" || h.kind === "gram"){
+    const match = document.createElement("div");
+    match.className = "small";
+    const rng = h.match_range ? (" • " + h.match_range) : "";
+    match.textContent = "התאמה: " + (h.match_text || "") + rng;
+    div.appendChild(match);
+  }
+
+  const small = document.createElement("div");
+  small.className = "small";
+  small.textContent = "טקסט מנורמל: " + h.clean_text;
+
+  div.appendChild(small);
+  frag.appendChild(div);
+});
+$("results").appendChild(frag);
+    $("footer").textContent = "אפשר לפתוח /docs כדי לבדוק את ה־API ולהריץ חיפושים נוספים.";
+  }catch(e){
+    showError(e.message || String(e));
+    $("status").textContent = "תקלה.";
+  }finally{
+    $("btn").disabled = false;
+  }
+}
+
+$("btn").addEventListener("click", doSearch);
+$("value").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch(); });
+$("text").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch(); });
+
+syncMode();
+</script>
+</body>
+</html>
