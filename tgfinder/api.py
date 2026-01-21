@@ -1,4 +1,6 @@
 from __future__ import annotations
+from os import environ
+
 
 from pathlib import Path
 from typing import List, Optional, Literal
@@ -37,7 +39,7 @@ class HitOut(BaseModel):
 
 _UI_PATH = Path(__file__).with_name("ui.html")
 
-
+# asdffds
 @app.get("/", response_class=HTMLResponse)
 def home():
     return HTMLResponse(_UI_PATH.read_text(encoding="utf-8"))
@@ -57,7 +59,9 @@ def api_search(
     # ברירת מחדל: להחזיר הכול (ללא LIMIT). אפשר להעביר limit=50 וכו'
     limit: Optional[int] = Query(None, ge=1, le=200000),
     offset: int = Query(0, ge=0),
-    db = os.environ.get("DB_PATH", "tanakh.sqlite")
+    db = environ.get("DB_PATH", "tanakh.sqlite")
+
+    # db = os.environ.get("DB_PATH", "tanakh.sqlite")
     # db: str = Query("tanakh.sqlite"),
 ):
     if value is None:
