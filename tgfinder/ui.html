@@ -254,16 +254,30 @@ $("text").onkeydown=e=>{if(e.key==="Enter")doSearch();};
 syncMode();
 
 // Tabs
+function activateTab(tabName){
+  const tab=document.querySelector(`.tab[data-tab="${tabName}"]`);
+  if(!tab)return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  tab.classList.add('active');
+  $(tabName+'Tab').classList.add('active');
+  if(tabName==='histogram'&&!vLoaded)loadData('verses');
+  if(tabName==='histogramWords'&&!wLoaded)loadData('words');
+}
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-    tab.classList.add('active');
-    $(tab.dataset.tab+'Tab').classList.add('active');
-    if(tab.dataset.tab==='histogram'&&!vLoaded)loadData('verses');
-    if(tab.dataset.tab==='histogramWords'&&!wLoaded)loadData('words');
+    const tabName=tab.dataset.tab;
+    history.pushState(null,null,'#'+tabName);
+    activateTab(tabName);
   };
 });
+// Handle URL hash on load and back/forward
+function handleHash(){
+  const hash=location.hash.slice(1)||'search';
+  activateTab(hash);
+}
+window.addEventListener('hashchange',handleHash);
+handleHash();
 
 // Load histogram data
 async function loadData(type){
