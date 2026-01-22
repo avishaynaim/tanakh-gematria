@@ -471,15 +471,20 @@ def api_roshei_tevot(
 
 # ============ ELS (Equidistant Letter Sequences) ============
 
-_els_text_cache: Optional[str] = None
+_els_clean_cache: Optional[str] = None
+_els_full_cache: Optional[str] = None
 _els_positions_cache: Optional[List[Dict[str, Any]]] = None
+_els_clean_to_full_map: Optional[List[int]] = None  # Maps clean text index to full text index
 
 class ELSMatch(BaseModel):
     skip: int
     start_pos: int
     ref_start: str
     ref_end: str
-    context: str  # Text around the match
+    matched_letters: str  # The actual letters found
+    letter_positions: List[int]  # Positions in full text for highlighting
+    full_text: str  # Full text with nikud for display
+    full_text_start: int  # Start position in full text
 
 class ELSResult(BaseModel):
     search_word: str
@@ -489,14 +494,14 @@ class ELSResult(BaseModel):
 @app.get("/els", response_model=ELSResult)
 def api_els(
     word: str = Query(..., min_length=2, max_length=10, description="מילה לחיפוש (2-10 אותיות)"),
-    max_skip: int = Query(100, ge=1, le=500, description="דילוג מקסימלי"),
+    max_skip: int = Query(1000, ge=1, description="דילוג מקסימלי"),
     db: str = Query(default=None),
 ):
     """
     Search for equidistant letter sequences (ELS / דילוג אותיות).
     Finds the search word appearing at regular intervals in the text.
     """
-    global _els_text_cache, _els_positions_cache
+    global _els_clean_cache, _els_full_cache, _els_positions_cache, _els_clean_to_full_map
 
     db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
 
@@ -508,10 +513,10 @@ def api_els(
     normalized_search = normalize_sofit(clean_word)
 
     # Build continuous text if not cached
-    if _els_text_cache is None:
+    if _els_clean_cache is None:
         conn = connect(db_path)
         sql = """
-            SELECT book, chapter, verse, clean_text
+            SELECT book, chapter, verse, text, clean_text
             FROM verses
             ORDER BY
                 CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
@@ -531,41 +536,62 @@ def api_els(
         """
         cur = conn.execute(sql)
 
-        all_text = []
-        positions = []  # Maps character position to verse reference
-        current_pos = 0
+        clean_chars = []
+        full_chars = []
+        positions = []
+        clean_to_full = []  # Maps each clean char index to its full text index
 
         for row in cur:
-            clean_text = row["clean_text"].replace(" ", "")  # Remove spaces
+            clean_text = row["clean_text"].replace(" ", "")
+            full_text = row["text"].replace(" ", "")  # Full text with nikud, no spaces
             hebrew_book = book_to_hebrew(row["book"])
             ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
 
-            for char in clean_text:
-                all_text.append(char)
-                positions.append({"pos": current_pos, "ref": ref})
-                current_pos += 1
+            # Add full text
+            full_start = len(full_chars)
+            for char in full_text:
+                full_chars.append(char)
 
-        _els_text_cache = "".join(all_text)
+            # Map clean chars to full text positions
+            # Clean text only has base Hebrew letters, full has nikud
+            full_idx = full_start
+            for clean_char in clean_text:
+                # Find this letter in full text (skip nikud)
+                while full_idx < len(full_chars):
+                    full_char = full_chars[full_idx]
+                    # Check if it's a Hebrew letter (not nikud)
+                    if '\u05d0' <= full_char <= '\u05ea':
+                        break
+                    full_idx += 1
+
+                clean_to_full.append(full_idx)
+                positions.append({"ref": ref})
+                clean_chars.append(clean_char)
+                full_idx += 1
+
+        _els_clean_cache = "".join(clean_chars)
+        _els_full_cache = "".join(full_chars)
         _els_positions_cache = positions
+        _els_clean_to_full_map = clean_to_full
         conn.close()
 
-    text = _els_text_cache
+    clean_text = _els_clean_cache
+    full_text = _els_full_cache
     positions = _els_positions_cache
-    text_normalized = normalize_sofit(text)
-    text_len = len(text)
+    clean_to_full = _els_clean_to_full_map
+    text_normalized = normalize_sofit(clean_text)
+    text_len = len(clean_text)
     word_len = len(normalized_search)
 
     matches = []
 
     # Search with different skip values
-    for skip in range(1, max_skip + 1):
-        # Calculate max starting position
+    for skip in range(1, min(max_skip + 1, text_len)):
         max_start = text_len - (word_len - 1) * skip - 1
         if max_start < 0:
             break
 
         for start in range(max_start + 1):
-            # Extract letters at skip intervals
             found_word = ""
             for i in range(word_len):
                 pos = start + i * skip
@@ -575,20 +601,36 @@ def api_els(
 
             if found_word == normalized_search:
                 end_pos = start + (word_len - 1) * skip
-                # Get context
-                ctx_start = max(0, start - 5)
-                ctx_end = min(text_len, end_pos + 6)
-                context = text[ctx_start:ctx_end]
+
+                # Get letter positions in full text
+                letter_positions = []
+                matched_letters = ""
+                for i in range(word_len):
+                    clean_pos = start + i * skip
+                    letter_positions.append(clean_to_full[clean_pos])
+                    matched_letters += clean_text[clean_pos]
+
+                # Get context in full text (with nikud)
+                full_start = clean_to_full[start]
+                full_end = clean_to_full[end_pos]
+                ctx_start = max(0, full_start - 50)
+                ctx_end = min(len(full_text), full_end + 51)
+
+                # Adjust letter positions relative to context
+                relative_positions = [p - ctx_start for p in letter_positions]
 
                 matches.append(ELSMatch(
                     skip=skip,
                     start_pos=start,
                     ref_start=positions[start]["ref"],
                     ref_end=positions[end_pos]["ref"],
-                    context=context
+                    matched_letters=matched_letters,
+                    letter_positions=relative_positions,
+                    full_text=full_text[ctx_start:ctx_end],
+                    full_text_start=ctx_start
                 ))
 
-                if len(matches) >= 500:  # Limit matches
+                if len(matches) >= 500:
                     break
 
         if len(matches) >= 500:

@@ -75,6 +75,11 @@
     .modal-text{font-size:13px;color:#374151;line-height:1.5}
     .modal-word{background:#dbeafe;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px;font-size:12px}
     mark{background:#fef08a;padding:1px 4px;border-radius:3px;font-weight:600}
+    .expandable{cursor:pointer}
+    .expandable-content{display:none;margin-top:8px;padding:10px;background:#f9fafb;border-radius:8px;font-size:18px;line-height:2}
+    .expandable-content.open{display:block}
+    .expand-btn{font-size:11px;color:#2563eb;margin-right:8px}
+    .els-letter{background:#dc2626;color:#fff;padding:0 2px;border-radius:2px;font-weight:700}
   </style>
 </head>
 <body>
@@ -237,11 +242,11 @@
         </div>
         <div>
           <label>דילוג מקסימלי</label>
-          <input id="elsMax" type="number" value="100" min="1" max="500" style="width:80px">
+          <input id="elsMax" type="number" value="100" min="1" style="width:80px">
         </div>
         <div><label>&nbsp;</label><button id="elsBtn">חפש</button></div>
       </div>
-      <div class="hint">חיפוש דילוגי אותיות שווים - עשוי לקחת זמן</div>
+      <div class="hint">⚠️ חיפוש דילוגי אותיות שווים - דילוגים גדולים (מעל 500) עלולים לקחת זמן רב!</div>
       <div id="elsErr" class="error" style="display:none"></div>
     </div>
     <div class="card">
@@ -573,11 +578,28 @@ $('rtBtn').onclick=doRosheiSearch;
 $('rtWord').onkeydown=e=>{if(e.key==='Enter')doRosheiSearch();};
 
 // ELS Search
+function highlightElsText(text,positions){
+  // Insert highlights at letter positions (from end to start to preserve indices)
+  let chars=[...text];
+  const posSet=new Set(positions);
+  let result='';
+  for(let i=0;i<chars.length;i++){
+    if(posSet.has(i)){
+      result+=`<span class="els-letter">${chars[i]}</span>`;
+    }else{
+      result+=chars[i];
+    }
+  }
+  return result;
+}
+
 async function doElsSearch(){
   const word=$('elsWord').value.trim();
   if(!word||word.length<2){$('elsErr').textContent='הזן לפחות 2 אותיות';$('elsErr').style.display='block';return;}
 
-  const maxSkip=$('elsMax').value||100;
+  const maxSkip=parseInt($('elsMax').value)||100;
+  if(maxSkip>500&&!confirm('דילוג מעל 500 עלול לקחת זמן רב. להמשיך?'))return;
+
   $('elsBtn').disabled=true;$('elsStatus').textContent='מחפש... (עשוי לקחת זמן)';$('elsResults').innerHTML='';$('elsErr').style.display='none';$('elsStats').style.display='none';
 
   try{
@@ -593,11 +615,19 @@ async function doElsSearch(){
       $('elsStatus').textContent='לא נמצאו תוצאות';
     }else{
       $('elsStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
-      $('elsResults').innerHTML=data.matches.map(m=>`<div class="hit">
-        <div><span class="ref">${m.ref_start}</span><span class="pill">דילוג: ${m.skip}</span></div>
-        <div class="text" dir="rtl">${m.context}</div>
-        <div class="meta">מ: ${m.ref_start} עד: ${m.ref_end}</div>
-      </div>`).join('');
+      $('elsResults').innerHTML=data.matches.map((m,idx)=>{
+        const highlighted=highlightElsText(m.full_text,m.letter_positions);
+        return `<div class="hit">
+          <div>
+            <span class="ref">${m.ref_start}</span>
+            <span class="pill">דילוג: ${m.skip}</span>
+            <span class="pill">${m.matched_letters}</span>
+            <span class="expand-btn expandable" onclick="this.parentElement.parentElement.querySelector('.expandable-content').classList.toggle('open')">▼ הצג טקסט מלא</span>
+          </div>
+          <div class="meta">מ: ${m.ref_start} עד: ${m.ref_end}</div>
+          <div class="expandable-content" dir="rtl">${highlighted}</div>
+        </div>`;
+      }).join('');
     }
   }catch(e){
     $('elsErr').textContent=e.message||'שגיאה';$('elsErr').style.display='block';
