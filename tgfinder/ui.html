@@ -241,10 +241,11 @@ async function doSearch(){
   }
 
   $("btn").disabled=true;$("status").textContent="מחפש...";$("results").innerHTML="";$("err").style.display="none";
+  const kindHeb={verse:'פסוק',word:'מילה',gram:'צירוף'};
   try{
     const data=await(await fetch("/search?"+params)).json();
     $("status").textContent="נמצאו "+data.length+" תוצאות";
-    $("results").innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
+    $("results").innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${kindHeb[h.kind]||h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
   }catch(e){$("err").textContent=e.message;$("err").style.display="block";}
   $("btn").disabled=false;
 }
