@@ -5,85 +5,73 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>חיפוש גימטריה בתנ״ך</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; background:#f6f7fb;}
-    header{background:#111827;color:#fff;padding:16px 18px;}
-    header h1{margin:0;font-size:20px;font-weight:700;}
-    header p{margin:6px 0 0;opacity:.9;font-size:13px}
-    main{padding:16px;max-width:1100px;margin:0 auto;}
-    .card{background:#fff;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:14px;margin-bottom:14px;}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
-    label{font-size:13px;color:#374151;display:block;margin-bottom:6px}
-    input,select{padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;min-width:180px;font-size:14px;background:#fff}
-    input[type="number"]{min-width:80px}
-    input[type="text"]{min-width:260px}
-    button{padding:10px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
-    button:disabled{opacity:.6;cursor:not-allowed}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:#f6f7fb}
+    header{background:#111827;color:#fff;padding:14px 16px}
+    header h1{margin:0;font-size:18px;font-weight:700}
+    main{padding:12px;max-width:1100px;margin:0 auto}
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:12px;margin-bottom:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+    label{font-size:12px;color:#374151;display:block;margin-bottom:4px}
+    input,select{padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;background:#fff}
+    input[type="number"]{width:100px}
+    button{padding:8px 14px;border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;font-size:13px;cursor:pointer}
+    button:disabled{opacity:.5}
     button.secondary{background:#e5e7eb;color:#374151}
-    button.secondary.active{background:#2563eb;color:#fff}
-    .hint{font-size:12px;color:#6b7280;margin-top:10px;line-height:1.5}
-    .results{margin-top:10px}
-    .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;margin-inline-start:8px}
-    .hit{border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:10px}
-    .hit .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .ref{font-weight:700;color:#111827}
-    .meta{color:#6b7280;font-size:12px}
-    .text{margin-top:8px;font-size:16px;line-height:1.7;color:#111827}
-    .small{margin-top:6px;font-size:13px;color:#374151}
-    .footer{margin-top:10px;color:#6b7280;font-size:12px}
-    .error{color:#b91c1c;font-size:13px;margin-top:8px}
-    .note{color:#374151;font-size:13px;margin-top:10px}
-    /* Tab Navigation */
-    .tabs{display:flex;gap:0;margin-bottom:0;background:#fff;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06);flex-wrap:wrap}
-    .tab{flex:1;padding:12px 10px;text-align:center;cursor:pointer;font-weight:600;font-size:13px;color:#6b7280;border-bottom:3px solid transparent;transition:all .2s;min-width:100px}
-    .tab:hover{background:#f6f7fb;color:#374151}
-    .tab.active{color:#2563eb;border-bottom-color:#2563eb;background:#fff}
+    button.small{padding:5px 10px;font-size:11px}
+    .tabs{display:flex;background:#fff;border-radius:12px 12px 0 0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .tab{flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:600;font-size:13px;color:#6b7280;border-bottom:3px solid transparent}
+    .tab:hover{background:#f9fafb}
+    .tab.active{color:#2563eb;border-bottom-color:#2563eb}
     .tab-content{display:none}
     .tab-content.active{display:block}
-    .card.no-top-radius{border-radius:0 0 14px 14px;margin-top:0}
-    /* Histogram Styles */
-    .histogram-controls{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-    .histogram-controls input[type="number"]{min-width:70px;padding:8px;font-size:13px}
-    .histogram-controls button{padding:6px 10px;font-size:12px}
-    .range-presets{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
-    .range-presets button{padding:6px 10px;font-size:11px}
-    .histogram-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-    .stat-item{background:#eef2ff;padding:8px 14px;border-radius:10px}
-    .stat-value{font-size:18px;font-weight:700;color:#2563eb}
-    .stat-label{font-size:11px;color:#6b7280;margin-top:2px}
-    .histogram-container{position:relative;width:100%;overflow-x:auto;padding:10px 0}
-    .histogram{display:flex;align-items:flex-end;gap:2px;min-height:200px;padding:10px}
-    .histogram-bar{background:linear-gradient(to top,#2563eb,#3b82f6);min-width:8px;cursor:pointer;border-radius:3px 3px 0 0;transition:all .15s;flex-shrink:0}
-    .histogram-bar:hover{background:linear-gradient(to top,#1d4ed8,#2563eb);transform:scaleY(1.05)}
-    .histogram-bar.selected{background:linear-gradient(to top,#dc2626,#ef4444)}
-    .bar-label{position:absolute;bottom:-18px;font-size:9px;color:#6b7280;white-space:nowrap;transform:rotate(-45deg);transform-origin:top right}
-    .loading-histogram{text-align:center;padding:40px;color:#6b7280}
-    .loading-histogram .spinner{border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px}
+    .card.no-top{border-radius:0 0 12px 12px;margin-top:0}
+    .meta{color:#6b7280;font-size:12px}
+    .error{color:#b91c1c;font-size:13px}
+    .results{margin-top:10px}
+    .hit{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:8px}
+    .ref{font-weight:700;color:#111827}
+    .pill{display:inline-block;padding:2px 6px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:11px;margin-inline-start:6px}
+    .text{margin-top:6px;font-size:15px;line-height:1.6}
+    /* Histogram */
+    .hist-section{margin-bottom:16px}
+    .hist-section h3{margin:0 0 8px;font-size:14px;color:#374151;display:flex;align-items:center;gap:8px}
+    .hist-section h3 .back-btn{font-size:12px}
+    .histogram{display:flex;align-items:flex-end;gap:2px;min-height:150px;padding:8px 4px;background:#f9fafb;border-radius:8px;overflow-x:auto}
+    .histogram.overview{min-height:120px}
+    .histogram.detail{min-height:180px}
+    .bar{background:linear-gradient(to top,#2563eb,#60a5fa);border-radius:3px 3px 0 0;cursor:pointer;transition:all .15s;position:relative;min-width:20px;flex-shrink:0}
+    .bar:hover{background:linear-gradient(to top,#1d4ed8,#3b82f6);transform:scaleY(1.03)}
+    .bar.selected{background:linear-gradient(to top,#dc2626,#f87171)}
+    .bar-label{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6b7280;white-space:nowrap}
+    .bar-count{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:#374151;font-weight:600}
+    .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .stat{background:#eef2ff;padding:6px 12px;border-radius:8px}
+    .stat b{color:#2563eb;font-size:16px}
+    .stat span{font-size:11px;color:#6b7280;display:block}
+    .hint{font-size:11px;color:#6b7280;margin-top:6px}
+    .loading{text-align:center;padding:30px;color:#6b7280}
+    .spinner{border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite;margin:0 auto 8px}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .range-info{font-size:12px;color:#6b7280;padding:8px 12px;background:#f9fafb;border-radius:8px;margin-bottom:12px}
+    .no-data{text-align:center;padding:20px;color:#9ca3af}
+    .jump-input{display:flex;gap:6px;align-items:center;margin-top:8px}
+    .jump-input input{width:80px}
     /* Modal */
-    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:1000;display:none;justify-content:center;align-items:center;padding:20px}
-    .modal-overlay.visible{display:flex}
-    .modal{background:#fff;border-radius:16px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-    .modal-header{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
-    .modal-header h3{margin:0;font-size:18px;color:#111827}
-    .modal-close{background:#f3f4f6;border:0;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
-    .modal-close:hover{background:#e5e7eb}
-    .modal-body{padding:16px 20px;overflow-y:auto;flex:1}
-    .modal-item{padding:12px;margin:8px 0;background:#f9fafb;border-radius:10px;cursor:pointer;border:2px solid transparent;transition:all .2s}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;justify-content:center;align-items:center;padding:16px}
+    .modal-bg.visible{display:flex}
+    .modal{background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:75vh;display:flex;flex-direction:column}
+    .modal-head{padding:14px 16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+    .modal-head h3{margin:0;font-size:16px}
+    .modal-close{background:#f3f4f6;border:0;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px}
+    .modal-body{padding:12px 16px;overflow-y:auto;flex:1}
+    .modal-item{padding:10px;margin:6px 0;background:#f9fafb;border-radius:8px;cursor:pointer;border:2px solid transparent}
     .modal-item:hover{background:#eef2ff;border-color:#2563eb}
-    .modal-item-ref{font-weight:700;color:#2563eb;margin-bottom:6px}
-    .modal-item-text{font-size:14px;line-height:1.6;color:#374151}
-    .modal-item-word{background:#dbeafe;padding:2px 8px;border-radius:6px;font-weight:600;margin-left:8px}
-    .modal-stats{color:#6b7280;font-size:13px}
-    .no-data{text-align:center;padding:40px;color:#6b7280}
+    .modal-ref{font-weight:600;color:#2563eb;margin-bottom:4px}
+    .modal-text{font-size:13px;color:#374151;line-height:1.5}
+    .modal-word{background:#dbeafe;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px;font-size:12px}
   </style>
 </head>
 <body>
-<header>
-  <h1>חיפוש גימטריה בתנ״ך</h1>
-  <p>חפש לפי מספר או לפי טקסט בעברית</p>
-</header>
-
+<header><h1>🔢 חיפוש גימטריה בתנ״ך</h1></header>
 <main>
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
@@ -91,124 +79,99 @@
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
   </div>
 
-  <!-- Search Tab -->
+  <!-- Search -->
   <div id="searchTab" class="tab-content active">
-  <div class="card no-top-radius">
-    <div class="row">
-      <div>
-        <label for="mode">מצב חיפוש</label>
-        <select id="mode">
-          <option value="number" selected>לפי מספר</option>
-          <option value="text">לפי טקסט בעברית</option>
-        </select>
+    <div class="card no-top">
+      <div class="row">
+        <div>
+          <label>מצב</label>
+          <select id="mode"><option value="number">מספר</option><option value="text">טקסט</option></select>
+        </div>
+        <div id="numWrap">
+          <label>גימטריה</label>
+          <input id="value" type="number" min="0" placeholder="347">
+        </div>
+        <div id="txtWrap" style="display:none">
+          <label>טקסט</label>
+          <input id="text" type="text" placeholder="שלום" style="width:150px">
+        </div>
+        <div>
+          <label>סוג</label>
+          <select id="kind"><option value="">הכול</option><option value="verse">פסוקים</option><option value="word">מילים</option></select>
+        </div>
+        <div><label>&nbsp;</label><button id="btn">חפש</button></div>
       </div>
-      <div id="numWrap">
-        <label for="value">מספר גימטריה</label>
-        <input id="value" type="number" min="0" placeholder="לדוגמה: 347" />
-      </div>
-      <div id="txtWrap" style="display:none;">
-        <label for="text">טקסט בעברית</label>
-        <input id="text" type="text" placeholder="לדוגמה: שלום" />
-      </div>
-      <div>
-        <label for="kind">סוג תוצאה</label>
-        <select id="kind">
-          <option value="">הכול</option>
-          <option value="verse">פסוקים</option>
-          <option value="word">מילים</option>
-          <option value="gram">רצפי מילים</option>
-        </select>
-      </div>
-      <div>
-        <label for="limit">מקסימום</label>
-        <select id="limit">
-          <option value="" selected>הכול</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-          <option value="500">500</option>
-        </select>
-      </div>
-      <div>
-        <button id="btn">חפש</button>
-      </div>
+      <div id="calc" class="hint" style="display:none"></div>
+      <div id="err" class="error" style="display:none"></div>
     </div>
-    <div id="calc" class="note" style="display:none;"></div>
-    <div id="err" class="error" style="display:none;"></div>
-  </div>
-  <div class="card">
-    <div class="meta" id="status">מוכן.</div>
-    <div class="results" id="results"></div>
-    <div class="footer" id="footer"></div>
-  </div>
+    <div class="card">
+      <div class="meta" id="status">מוכן</div>
+      <div class="results" id="results"></div>
+    </div>
   </div>
 
-  <!-- Verses Histogram Tab -->
+  <!-- Verses Histogram -->
   <div id="histogramTab" class="tab-content">
-    <div class="card no-top-radius">
-      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 פסוקים לפי גימטריה</h2>
+    <div class="card no-top">
+      <div id="vStats" class="stats"></div>
 
-      <div id="histogramStats" class="histogram-stats"></div>
-
-      <div class="range-presets" id="versesPresets"></div>
-
-      <div class="histogram-controls">
-        <label style="margin:0">טווח:</label>
-        <input type="number" id="versesMin" placeholder="מ-">
-        <span>-</span>
-        <input type="number" id="versesMax" placeholder="עד">
-        <button onclick="applyRange('verses')">הצג</button>
-        <button class="secondary" onclick="jumpToGematria('verses')">קפוץ לערך</button>
+      <div class="hist-section">
+        <h3>📊 תמונה כללית <span class="hint">(לחץ על טווח לפירוט)</span></h3>
+        <div id="vOverview" class="histogram overview"></div>
       </div>
 
-      <div id="versesRangeInfo" class="range-info" style="display:none"></div>
-
-      <div id="histogramLoading" class="loading-histogram">
-        <div class="spinner"></div>
-        <div>טוען...</div>
+      <div id="vDetailSection" class="hist-section" style="display:none">
+        <h3>
+          <button class="secondary small back-btn" onclick="hideDetail('verses')">← חזור</button>
+          <span id="vDetailTitle">פירוט</span>
+        </h3>
+        <div id="vDetail" class="histogram detail"></div>
       </div>
 
-      <div id="histogramContainer" class="histogram-container" style="display:none">
-        <div id="histogram" class="histogram"></div>
+      <div class="jump-input">
+        <label>קפוץ לגימטריה:</label>
+        <input type="number" id="vJump" placeholder="500">
+        <button class="small" onclick="jumpTo('verses')">מצא</button>
       </div>
+
+      <div id="vLoading" class="loading"><div class="spinner"></div>טוען...</div>
     </div>
   </div>
 
-  <!-- Words Histogram Tab -->
+  <!-- Words Histogram -->
   <div id="histogramWordsTab" class="tab-content">
-    <div class="card no-top-radius">
-      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 מילים לפי גימטריה</h2>
+    <div class="card no-top">
+      <div id="wStats" class="stats"></div>
 
-      <div id="histogramWordsStats" class="histogram-stats"></div>
-
-      <div class="range-presets" id="wordsPresets"></div>
-
-      <div class="histogram-controls">
-        <label style="margin:0">טווח:</label>
-        <input type="number" id="wordsMin" placeholder="מ-">
-        <span>-</span>
-        <input type="number" id="wordsMax" placeholder="עד">
-        <button onclick="applyRange('words')">הצג</button>
-        <button class="secondary" onclick="jumpToGematria('words')">קפוץ לערך</button>
+      <div class="hist-section">
+        <h3>📊 תמונה כללית <span class="hint">(לחץ על טווח לפירוט)</span></h3>
+        <div id="wOverview" class="histogram overview"></div>
       </div>
 
-      <div id="wordsRangeInfo" class="range-info" style="display:none"></div>
-
-      <div id="histogramWordsLoading" class="loading-histogram">
-        <div class="spinner"></div>
-        <div>טוען...</div>
+      <div id="wDetailSection" class="hist-section" style="display:none">
+        <h3>
+          <button class="secondary small back-btn" onclick="hideDetail('words')">← חזור</button>
+          <span id="wDetailTitle">פירוט</span>
+        </h3>
+        <div id="wDetail" class="histogram detail"></div>
       </div>
 
-      <div id="histogramWordsContainer" class="histogram-container" style="display:none">
-        <div id="histogramWords" class="histogram"></div>
+      <div class="jump-input">
+        <label>קפוץ לגימטריה:</label>
+        <input type="number" id="wJump" placeholder="50">
+        <button class="small" onclick="jumpTo('words')">מצא</button>
       </div>
+
+      <div id="wLoading" class="loading"><div class="spinner"></div>טוען...</div>
     </div>
   </div>
 </main>
 
-<div id="modal" class="modal-overlay">
+<!-- Modal -->
+<div id="modal" class="modal-bg">
   <div class="modal">
-    <div class="modal-header">
-      <h3 id="modalTitle">גימטריה: 0</h3>
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
@@ -216,277 +179,209 @@
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
+const $=id=>document.getElementById(id);
+let vData=[],wData=[],vLoaded=false,wLoaded=false;
 
-// ========== Search Tab ==========
-function showError(msg) {
-  $("err").style.display = msg ? "block" : "none";
-  $("err").textContent = msg || "";
+// Search
+function syncMode(){
+  $("numWrap").style.display=$("mode").value==="number"?"block":"none";
+  $("txtWrap").style.display=$("mode").value==="text"?"block":"none";
 }
+$("mode").onchange=syncMode;
 
-function showCalc(msg) {
-  $("calc").style.display = msg ? "block" : "none";
-  $("calc").textContent = msg || "";
-}
+async function doSearch(){
+  const mode=$("mode").value,kind=$("kind").value;
+  const params=new URLSearchParams();
+  if(kind)params.set("kind",kind);
+  params.set("limit","500");
 
-function kindLabel(k) {
-  return {verse: "פסוק", word: "מילה", gram: "רצף"}[k] || k;
-}
-
-function syncMode() {
-  const mode = $("mode").value;
-  $("numWrap").style.display = mode === "number" ? "block" : "none";
-  $("txtWrap").style.display = mode === "text" ? "block" : "none";
-  showCalc(""); showError("");
-}
-$("mode").addEventListener("change", syncMode);
-
-async function doSearch() {
-  showError(""); showCalc("");
-  const mode = $("mode").value;
-  const kind = $("kind").value;
-  const limit = $("limit").value;
-  const params = new URLSearchParams();
-  if (limit) params.set("limit", limit);
-  if (kind) params.set("kind", kind);
-
-  if (mode === "number") {
-    const value = $("value").value.trim();
-    if (!value) { showError("נא להזין מספר."); return; }
-    params.set("value", value);
-  } else {
-    const text = $("text").value.trim();
-    if (!text) { showError("נא להזין טקסט."); return; }
-    try {
-      const g = await (await fetch("/gematria?text=" + encodeURIComponent(text))).json();
-      showCalc(`גימטריה: ${g.gematria}`);
-    } catch(e) { showError(e.message); return; }
-    params.set("text", text);
+  if(mode==="number"){
+    const v=$("value").value.trim();
+    if(!v){$("err").textContent="הזן מספר";$("err").style.display="block";return;}
+    params.set("value",v);
+  }else{
+    const t=$("text").value.trim();
+    if(!t){$("err").textContent="הזן טקסט";$("err").style.display="block";return;}
+    try{
+      const g=await(await fetch("/gematria?text="+encodeURIComponent(t))).json();
+      $("calc").textContent="גימטריה: "+g.gematria;$("calc").style.display="block";
+    }catch(e){$("err").textContent=e.message;$("err").style.display="block";return;}
+    params.set("text",t);
   }
 
-  $("btn").disabled = true;
-  $("status").textContent = "מחפש...";
-  $("results").innerHTML = "";
-
-  try {
-    const data = await (await fetch("/search?" + params)).json();
-    $("status").textContent = `נמצאו ${data.length} תוצאות.`;
-    if (!data.length) { $("results").innerHTML = "<div class='meta'>אין התאמות.</div>"; return; }
-
-    $("results").innerHTML = data.map(h => `
-      <div class="hit">
-        <div class="top">
-          <div><span class="ref">${h.ref}</span><span class="pill">${kindLabel(h.kind)}</span></div>
-          <div class="meta">גימטריה: ${h.gematria}</div>
-        </div>
-        <div class="text">${h.text}</div>
-        ${h.match_text ? `<div class="small">התאמה: ${h.match_text}</div>` : ''}
-      </div>
-    `).join('');
-  } catch(e) {
-    showError(e.message);
-  } finally {
-    $("btn").disabled = false;
-  }
+  $("btn").disabled=true;$("status").textContent="מחפש...";$("results").innerHTML="";$("err").style.display="none";
+  try{
+    const data=await(await fetch("/search?"+params)).json();
+    $("status").textContent="נמצאו "+data.length+" תוצאות";
+    $("results").innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
+  }catch(e){$("err").textContent=e.message;$("err").style.display="block";}
+  $("btn").disabled=false;
 }
-
-$("btn").addEventListener("click", doSearch);
-$("value").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
-$("text").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
+$("btn").onclick=doSearch;
+$("value").onkeydown=e=>{if(e.key==="Enter")doSearch();};
+$("text").onkeydown=e=>{if(e.key==="Enter")doSearch();};
 syncMode();
 
-// ========== Tabs ==========
-const tabs = document.querySelectorAll('.tab');
-tabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    const t = tab.dataset.tab;
-    tabs.forEach(x => x.classList.remove('active'));
+// Tabs
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
     tab.classList.add('active');
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    $(t + 'Tab').classList.add('active');
-    if (t === 'histogram' && !versesLoaded) loadHistogram('verses');
-    if (t === 'histogramWords' && !wordsLoaded) loadHistogram('words');
-  });
+    $(tab.dataset.tab+'Tab').classList.add('active');
+    if(tab.dataset.tab==='histogram'&&!vLoaded)loadData('verses');
+    if(tab.dataset.tab==='histogramWords'&&!wLoaded)loadData('words');
+  };
 });
 
-// ========== Histogram ==========
-let versesData = [], wordsData = [];
-let versesLoaded = false, wordsLoaded = false;
-let currentRange = { verses: { min: 0, max: 0 }, words: { min: 0, max: 0 } };
-let selectedBar = null;
+// Load histogram data
+async function loadData(type){
+  const isV=type==='verses';
+  const loading=$(isV?'vLoading':'wLoading');
+  const statsDiv=$(isV?'vStats':'wStats');
+  const overviewDiv=$(isV?'vOverview':'wOverview');
 
-async function loadHistogram(type) {
-  const isVerses = type === 'verses';
-  const loading = $(isVerses ? 'histogramLoading' : 'histogramWordsLoading');
-  const container = $(isVerses ? 'histogramContainer' : 'histogramWordsContainer');
-  const statsDiv = $(isVerses ? 'histogramStats' : 'histogramWordsStats');
-  const presetsDiv = $(isVerses ? 'versesPresets' : 'wordsPresets');
+  try{
+    const data=await(await fetch(isV?'/histogram':'/histogram/words')).json();
+    if(isV){vData=data;vLoaded=true;}else{wData=data;wLoaded=true;}
 
-  try {
-    const url = isVerses ? '/histogram' : '/histogram/words';
-    const data = await (await fetch(url)).json();
+    const total=data.reduce((s,b)=>s+b.count,0);
+    const minG=data[0]?.gematria||0;
+    const maxG=data[data.length-1]?.gematria||0;
 
-    if (isVerses) { versesData = data; versesLoaded = true; }
-    else { wordsData = data; wordsLoaded = true; }
-
-    const total = data.reduce((s, b) => s + b.count, 0);
-    const minGem = data[0]?.gematria || 0;
-    const maxGem = data[data.length - 1]?.gematria || 0;
-    const maxCount = Math.max(...data.map(b => b.count));
-
-    statsDiv.innerHTML = `
-      <div class="stat-item"><div class="stat-value">${total.toLocaleString()}</div><div class="stat-label">סה״כ ${isVerses ? 'פסוקים' : 'מילים'}</div></div>
-      <div class="stat-item"><div class="stat-value">${data.length.toLocaleString()}</div><div class="stat-label">ערכים שונים</div></div>
-      <div class="stat-item"><div class="stat-value">${minGem}-${maxGem}</div><div class="stat-label">טווח</div></div>
+    statsDiv.innerHTML=`
+      <div class="stat"><b>${total.toLocaleString()}</b><span>${isV?'פסוקים':'מילים'}</span></div>
+      <div class="stat"><b>${data.length.toLocaleString()}</b><span>ערכים</span></div>
+      <div class="stat"><b>${minG}-${maxG}</b><span>טווח</span></div>
     `;
 
-    // Create range presets
-    const ranges = [];
-    for (let i = minGem; i <= maxGem; i += 500) {
-      ranges.push({ min: i, max: Math.min(i + 499, maxGem) });
+    // Create overview buckets (group into ~40 buckets)
+    const bucketSize=Math.ceil((maxG-minG+1)/40);
+    const buckets=[];
+    for(let i=minG;i<=maxG;i+=bucketSize){
+      const end=Math.min(i+bucketSize-1,maxG);
+      const items=data.filter(d=>d.gematria>=i&&d.gematria<=end);
+      const count=items.reduce((s,d)=>s+d.count,0);
+      buckets.push({min:i,max:end,count,items});
     }
-    presetsDiv.innerHTML = ranges.slice(0, 20).map(r =>
-      `<button class="secondary" onclick="setRange('${type}', ${r.min}, ${r.max})">${r.min}-${r.max}</button>`
-    ).join('');
 
-    // Set initial range (first 500)
-    currentRange[type] = { min: minGem, max: Math.min(minGem + 499, maxGem) };
-    $(isVerses ? 'versesMin' : 'wordsMin').value = currentRange[type].min;
-    $(isVerses ? 'versesMax' : 'wordsMax').value = currentRange[type].max;
-
-    renderHistogram(type);
-    loading.style.display = 'none';
-    container.style.display = 'block';
-  } catch(e) {
-    loading.innerHTML = `<div class="error">שגיאה: ${e.message}</div>`;
+    renderOverview(type,buckets,overviewDiv);
+    loading.style.display='none';
+  }catch(e){
+    loading.innerHTML=`<div class="error">שגיאה: ${e.message}</div>`;
   }
 }
 
-function setRange(type, min, max) {
-  currentRange[type] = { min, max };
-  const isVerses = type === 'verses';
-  $(isVerses ? 'versesMin' : 'wordsMin').value = min;
-  $(isVerses ? 'versesMax' : 'wordsMax').value = max;
-  renderHistogram(type);
+function renderOverview(type,buckets,container){
+  const maxCount=Math.max(...buckets.map(b=>b.count));
+  const h=100;
 
-  // Update active button
-  const presets = $(isVerses ? 'versesPresets' : 'wordsPresets').querySelectorAll('button');
-  presets.forEach(b => {
-    const [bMin, bMax] = b.textContent.split('-').map(Number);
-    b.classList.toggle('active', bMin === min && bMax === max);
-  });
+  container.innerHTML=buckets.map((b,i)=>{
+    const bh=Math.max(4,b.count/maxCount*h);
+    return `<div class="bar" style="height:${bh}px;flex:1;min-width:16px" onclick="showDetail('${type}',${i})" data-idx="${i}">
+      <span class="bar-label">${b.min}-${b.max}</span>
+      ${b.count>0?`<span class="bar-count">${b.count>999?(b.count/1000).toFixed(1)+'k':b.count}</span>`:''}
+    </div>`;
+  }).join('');
+
+  // Store buckets for later
+  if(type==='verses')window.vBuckets=buckets;
+  else window.wBuckets=buckets;
 }
 
-function applyRange(type) {
-  const isVerses = type === 'verses';
-  const min = parseInt($(isVerses ? 'versesMin' : 'wordsMin').value) || 0;
-  const max = parseInt($(isVerses ? 'versesMax' : 'wordsMax').value) || 99999;
-  setRange(type, min, max);
-}
+function showDetail(type,bucketIdx){
+  const isV=type==='verses';
+  const buckets=isV?window.vBuckets:window.wBuckets;
+  const bucket=buckets[bucketIdx];
+  const section=$(isV?'vDetailSection':'wDetailSection');
+  const title=$(isV?'vDetailTitle':'wDetailTitle');
+  const container=$(isV?'vDetail':'wDetail');
+  const data=isV?vData:wData;
 
-function renderHistogram(type) {
-  const isVerses = type === 'verses';
-  const data = isVerses ? versesData : wordsData;
-  const container = $(isVerses ? 'histogram' : 'histogramWords');
-  const infoDiv = $(isVerses ? 'versesRangeInfo' : 'wordsRangeInfo');
-  const { min, max } = currentRange[type];
+  // Get items in this range
+  const items=data.filter(d=>d.gematria>=bucket.min&&d.gematria<=bucket.max);
 
-  // Filter data by range
-  const filtered = data.filter(b => b.gematria >= min && b.gematria <= max);
-
-  if (!filtered.length) {
-    container.innerHTML = '<div class="no-data">אין נתונים בטווח זה</div>';
-    infoDiv.style.display = 'none';
+  if(!items.length){
+    container.innerHTML='<div class="no-data">אין נתונים</div>';
+    section.style.display='block';
     return;
   }
 
-  const maxCount = Math.max(...filtered.map(b => b.count));
-  const height = 180;
-  const barWidth = Math.max(12, Math.min(40, Math.floor((container.parentElement.clientWidth - 40) / filtered.length)));
+  const maxCount=Math.max(...items.map(d=>d.count));
+  const h=150;
+  const barW=Math.max(20,Math.min(50,Math.floor((container.clientWidth||600)/items.length)-4));
 
-  container.innerHTML = filtered.map((bucket, i) => {
-    const barHeight = Math.max(4, (bucket.count / maxCount) * height);
-    return `<div class="histogram-bar" style="height:${barHeight}px;width:${barWidth}px" data-idx="${i}" onclick="showBucketModal('${type}', ${data.indexOf(bucket)})"></div>`;
+  container.innerHTML=items.map((d,i)=>{
+    const bh=Math.max(4,d.count/maxCount*h);
+    return `<div class="bar" style="height:${bh}px;width:${barW}px" onclick="showModal('${type}',${d.gematria})">
+      <span class="bar-label">${d.gematria}</span>
+      <span class="bar-count">${d.count}</span>
+    </div>`;
   }).join('');
 
-  infoDiv.textContent = `מציג ${filtered.length} ערכים (${min} עד ${max}) • לחץ על עמודה לפרטים`;
-  infoDiv.style.display = 'block';
+  title.textContent=`טווח ${bucket.min}-${bucket.max} (${items.length} ערכים)`;
+  section.style.display='block';
+  section.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function jumpToGematria(type) {
-  const isVerses = type === 'verses';
-  const input = $(isVerses ? 'versesMin' : 'wordsMin');
-  const target = parseInt(input.value) || 0;
+function hideDetail(type){
+  $(type==='verses'?'vDetailSection':'wDetailSection').style.display='none';
+}
 
-  // Set range around target (±250)
-  const min = Math.max(1, target - 250);
-  const max = target + 250;
-  setRange(type, min, max);
+function jumpTo(type){
+  const isV=type==='verses';
+  const target=parseInt($(isV?'vJump':'wJump').value)||0;
+  const buckets=isV?window.vBuckets:window.wBuckets;
+  if(!buckets)return;
 
-  // Find and click the target bar
-  const data = isVerses ? versesData : wordsData;
-  const idx = data.findIndex(b => b.gematria >= target);
-  if (idx >= 0) {
-    setTimeout(() => showBucketModal(type, idx), 100);
+  // Find bucket containing target
+  const idx=buckets.findIndex(b=>target>=b.min&&target<=b.max);
+  if(idx>=0){
+    showDetail(type,idx);
+    // After detail renders, show modal for exact value
+    setTimeout(()=>showModal(type,target),200);
   }
 }
 
-// ========== Modal ==========
-function showBucketModal(type, dataIdx) {
-  const data = type === 'verses' ? versesData : wordsData;
-  const bucket = data[dataIdx];
-  if (!bucket) return;
+// Modal
+function showModal(type,gematria){
+  const data=type==='verses'?vData:wData;
+  const bucket=data.find(d=>d.gematria===gematria);
+  if(!bucket)return;
 
-  // Highlight bar
-  document.querySelectorAll('.histogram-bar').forEach(b => b.classList.remove('selected'));
-  const bars = $(type === 'verses' ? 'histogram' : 'histogramWords').querySelectorAll('.histogram-bar');
-  const filtered = data.filter(b => b.gematria >= currentRange[type].min && b.gematria <= currentRange[type].max);
-  const filteredIdx = filtered.indexOf(bucket);
-  if (filteredIdx >= 0 && bars[filteredIdx]) bars[filteredIdx].classList.add('selected');
+  const isV=type==='verses';
+  const items=isV?bucket.verses:bucket.words;
+  const label=isV?'פסוקים':'מילים';
 
-  const isVerses = type === 'verses';
-  const items = isVerses ? bucket.verses : bucket.words;
-  const label = isVerses ? 'פסוקים' : 'מילים';
-
-  $('modalTitle').textContent = `גימטריה: ${bucket.gematria} (${bucket.count} ${label})`;
-  $('modalBody').innerHTML = items.slice(0, 100).map(item => {
-    if (isVerses) {
-      return `<div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'verse')">
-        <div class="modal-item-ref">${item.ref}</div>
-        <div class="modal-item-text">${item.text}</div>
+  $('modalTitle').textContent=`גימטריה ${gematria} (${bucket.count} ${label})`;
+  $('modalBody').innerHTML=items.slice(0,100).map(item=>{
+    if(isV){
+      return `<div class="modal-item" onclick="searchGem(${gematria},'verse')">
+        <div class="modal-ref">${item.ref}</div>
+        <div class="modal-text">${item.text}</div>
       </div>`;
-    } else {
-      return `<div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'word')">
-        <div class="modal-item-ref">${item.ref}<span class="modal-item-word">${item.word}</span></div>
-        <div class="modal-item-text">${item.verse_text}</div>
+    }else{
+      return `<div class="modal-item" onclick="searchGem(${gematria},'word')">
+        <div class="modal-ref">${item.ref}<span class="modal-word">${item.word}</span></div>
+        <div class="modal-text">${item.verse_text}</div>
       </div>`;
     }
-  }).join('') + (items.length > 100 ? `<div class="modal-stats">מציג 100 מתוך ${items.length}</div>` : '');
+  }).join('')+(items.length>100?`<div class="meta" style="text-align:center;padding:10px">מציג 100 מתוך ${items.length}</div>`:'');
 
   $('modal').classList.add('visible');
 }
 
-function closeModal() {
-  $('modal').classList.remove('visible');
-  document.querySelectorAll('.histogram-bar.selected').forEach(b => b.classList.remove('selected'));
-}
-
-function searchFromModal(gematria, kind) {
+function closeModal(){$('modal').classList.remove('visible');}
+function searchGem(g,k){
   closeModal();
-  tabs[0].click();
-  $('mode').value = 'number';
-  syncMode();
-  $('value').value = gematria;
-  $('kind').value = kind;
+  document.querySelectorAll('.tab')[0].click();
+  $('mode').value='number';syncMode();
+  $('value').value=g;$('kind').value=k;
   doSearch();
 }
 
-$('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-// Enter key on range inputs
-['versesMin', 'versesMax'].forEach(id => $(id)?.addEventListener('keydown', e => { if(e.key === 'Enter') applyRange('verses'); }));
-['wordsMin', 'wordsMax'].forEach(id => $(id)?.addEventListener('keydown', e => { if(e.key === 'Enter') applyRange('words'); }));
+$('modal').onclick=e=>{if(e.target.id==='modal')closeModal();};
+document.onkeydown=e=>{if(e.key==='Escape')closeModal();};
 </script>
 </body>
 </html>
