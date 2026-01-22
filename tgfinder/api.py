@@ -341,3 +341,261 @@ def api_word_search(
         ))
 
     return WordSearchResult(word=clean_word, count=len(locations), locations=locations)
+
+
+# ============ Roshei/Sofei Tevot ============
+
+class RosheiTevotMatch(BaseModel):
+    ref: str
+    verse_text: str
+    words: List[str]  # The words that form the match
+    letters: str  # The letters extracted
+    start_word_idx: int
+
+class RosheiTevotResult(BaseModel):
+    search_word: str
+    mode: str  # 'first', 'last', or offset number
+    count: int
+    matches: List[RosheiTevotMatch]
+
+@app.get("/roshei-tevot", response_model=RosheiTevotResult)
+def api_roshei_tevot(
+    word: str = Query(..., min_length=1, description="מילה לחיפוש"),
+    mode: str = Query("first", description="first=ראשי תיבות, last=סופי תיבות, או מספר לאופסט"),
+    db: str = Query(default=None),
+):
+    """
+    Search for words formed by taking specific letters from consecutive words.
+    mode: 'first' (first letter), 'last' (last letter), or a number for offset
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    # Clean search word
+    clean_word = re.sub(r'[^\u05d0-\u05ea]', '', word)
+    if not clean_word:
+        raise HTTPException(status_code=400, detail="נא להזין מילה בעברית")
+
+    normalized_search = normalize_sofit(clean_word)
+    word_len = len(normalized_search)
+
+    # Parse mode
+    if mode == 'first':
+        offset = 0
+    elif mode == 'last':
+        offset = -1
+    else:
+        try:
+            offset = int(mode)
+        except ValueError:
+            offset = 0
+
+    # Get all verses ordered by book
+    sql = """
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        ORDER BY
+            CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
+            WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
+            WHEN book='Judges' THEN 7 WHEN book='1 Samuel' THEN 8 WHEN book='2 Samuel' THEN 9
+            WHEN book='1 Kings' THEN 10 WHEN book='2 Kings' THEN 11 WHEN book='Isaiah' THEN 12
+            WHEN book='Jeremiah' THEN 13 WHEN book='Ezekiel' THEN 14 WHEN book='Hosea' THEN 15
+            WHEN book='Joel' THEN 16 WHEN book='Amos' THEN 17 WHEN book='Obadiah' THEN 18
+            WHEN book='Jonah' THEN 19 WHEN book='Micah' THEN 20 WHEN book='Nahum' THEN 21
+            WHEN book='Habakkuk' THEN 22 WHEN book='Zephaniah' THEN 23 WHEN book='Haggai' THEN 24
+            WHEN book='Zechariah' THEN 25 WHEN book='Malachi' THEN 26 WHEN book='Psalms' THEN 27
+            WHEN book='Proverbs' THEN 28 WHEN book='Job' THEN 29 WHEN book='Song of Songs' THEN 30
+            WHEN book='Ruth' THEN 31 WHEN book='Lamentations' THEN 32 WHEN book='Ecclesiastes' THEN 33
+            WHEN book='Esther' THEN 34 WHEN book='Daniel' THEN 35 WHEN book='Ezra' THEN 36
+            WHEN book='Nehemiah' THEN 37 WHEN book='1 Chronicles' THEN 38 WHEN book='2 Chronicles' THEN 39
+            ELSE 999 END, chapter, verse
+    """
+
+    cur = conn.execute(sql)
+    matches = []
+
+    for row in cur:
+        verse_text = row["text"]
+        clean_text = row["clean_text"]
+        words = clean_text.split()
+
+        if len(words) < word_len:
+            continue
+
+        # Slide window of word_len words
+        for i in range(len(words) - word_len + 1):
+            window_words = words[i:i + word_len]
+            letters = ""
+            valid = True
+
+            for w in window_words:
+                if not w:
+                    valid = False
+                    break
+                try:
+                    if offset == -1:
+                        letters += w[-1]
+                    elif offset >= 0 and offset < len(w):
+                        letters += w[offset]
+                    else:
+                        valid = False
+                        break
+                except IndexError:
+                    valid = False
+                    break
+
+            if valid and normalize_sofit(letters) == normalized_search:
+                hebrew_book = book_to_hebrew(row["book"])
+                ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+                # Get original words with nikud
+                orig_words = verse_text.split()
+                match_words = orig_words[i:i + word_len] if i + word_len <= len(orig_words) else window_words
+                matches.append(RosheiTevotMatch(
+                    ref=ref,
+                    verse_text=verse_text,
+                    words=match_words,
+                    letters=letters,
+                    start_word_idx=i
+                ))
+
+    conn.close()
+
+    mode_display = "ראשי תיבות" if mode == "first" else ("סופי תיבות" if mode == "last" else f"אופסט {mode}")
+    return RosheiTevotResult(
+        search_word=clean_word,
+        mode=mode_display,
+        count=len(matches),
+        matches=matches[:1000]  # Limit results
+    )
+
+
+# ============ ELS (Equidistant Letter Sequences) ============
+
+_els_text_cache: Optional[str] = None
+_els_positions_cache: Optional[List[Dict[str, Any]]] = None
+
+class ELSMatch(BaseModel):
+    skip: int
+    start_pos: int
+    ref_start: str
+    ref_end: str
+    context: str  # Text around the match
+
+class ELSResult(BaseModel):
+    search_word: str
+    count: int
+    matches: List[ELSMatch]
+
+@app.get("/els", response_model=ELSResult)
+def api_els(
+    word: str = Query(..., min_length=2, max_length=10, description="מילה לחיפוש (2-10 אותיות)"),
+    max_skip: int = Query(100, ge=1, le=500, description="דילוג מקסימלי"),
+    db: str = Query(default=None),
+):
+    """
+    Search for equidistant letter sequences (ELS / דילוג אותיות).
+    Finds the search word appearing at regular intervals in the text.
+    """
+    global _els_text_cache, _els_positions_cache
+
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+
+    # Clean search word
+    clean_word = re.sub(r'[^\u05d0-\u05ea]', '', word)
+    if len(clean_word) < 2:
+        raise HTTPException(status_code=400, detail="נא להזין לפחות 2 אותיות")
+
+    normalized_search = normalize_sofit(clean_word)
+
+    # Build continuous text if not cached
+    if _els_text_cache is None:
+        conn = connect(db_path)
+        sql = """
+            SELECT book, chapter, verse, clean_text
+            FROM verses
+            ORDER BY
+                CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
+                WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
+                WHEN book='Judges' THEN 7 WHEN book='1 Samuel' THEN 8 WHEN book='2 Samuel' THEN 9
+                WHEN book='1 Kings' THEN 10 WHEN book='2 Kings' THEN 11 WHEN book='Isaiah' THEN 12
+                WHEN book='Jeremiah' THEN 13 WHEN book='Ezekiel' THEN 14 WHEN book='Hosea' THEN 15
+                WHEN book='Joel' THEN 16 WHEN book='Amos' THEN 17 WHEN book='Obadiah' THEN 18
+                WHEN book='Jonah' THEN 19 WHEN book='Micah' THEN 20 WHEN book='Nahum' THEN 21
+                WHEN book='Habakkuk' THEN 22 WHEN book='Zephaniah' THEN 23 WHEN book='Haggai' THEN 24
+                WHEN book='Zechariah' THEN 25 WHEN book='Malachi' THEN 26 WHEN book='Psalms' THEN 27
+                WHEN book='Proverbs' THEN 28 WHEN book='Job' THEN 29 WHEN book='Song of Songs' THEN 30
+                WHEN book='Ruth' THEN 31 WHEN book='Lamentations' THEN 32 WHEN book='Ecclesiastes' THEN 33
+                WHEN book='Esther' THEN 34 WHEN book='Daniel' THEN 35 WHEN book='Ezra' THEN 36
+                WHEN book='Nehemiah' THEN 37 WHEN book='1 Chronicles' THEN 38 WHEN book='2 Chronicles' THEN 39
+                ELSE 999 END, chapter, verse
+        """
+        cur = conn.execute(sql)
+
+        all_text = []
+        positions = []  # Maps character position to verse reference
+        current_pos = 0
+
+        for row in cur:
+            clean_text = row["clean_text"].replace(" ", "")  # Remove spaces
+            hebrew_book = book_to_hebrew(row["book"])
+            ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+
+            for char in clean_text:
+                all_text.append(char)
+                positions.append({"pos": current_pos, "ref": ref})
+                current_pos += 1
+
+        _els_text_cache = "".join(all_text)
+        _els_positions_cache = positions
+        conn.close()
+
+    text = _els_text_cache
+    positions = _els_positions_cache
+    text_normalized = normalize_sofit(text)
+    text_len = len(text)
+    word_len = len(normalized_search)
+
+    matches = []
+
+    # Search with different skip values
+    for skip in range(1, max_skip + 1):
+        # Calculate max starting position
+        max_start = text_len - (word_len - 1) * skip - 1
+        if max_start < 0:
+            break
+
+        for start in range(max_start + 1):
+            # Extract letters at skip intervals
+            found_word = ""
+            for i in range(word_len):
+                pos = start + i * skip
+                if pos >= text_len:
+                    break
+                found_word += text_normalized[pos]
+
+            if found_word == normalized_search:
+                end_pos = start + (word_len - 1) * skip
+                # Get context
+                ctx_start = max(0, start - 5)
+                ctx_end = min(text_len, end_pos + 6)
+                context = text[ctx_start:ctx_end]
+
+                matches.append(ELSMatch(
+                    skip=skip,
+                    start_pos=start,
+                    ref_start=positions[start]["ref"],
+                    ref_end=positions[end_pos]["ref"],
+                    context=context
+                ))
+
+                if len(matches) >= 500:  # Limit matches
+                    break
+
+        if len(matches) >= 500:
+            break
+
+    return ELSResult(
+        search_word=clean_word,
+        count=len(matches),
+        matches=matches
+    )

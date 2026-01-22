@@ -85,6 +85,8 @@
     <div class="tab" data-tab="histogram">📊 פסוקים</div>
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
     <div class="tab" data-tab="wordCount">🔢 ספירת מילים</div>
+    <div class="tab" data-tab="roshei">א״ת ראשי/סופי</div>
+    <div class="tab" data-tab="els">דילוג אותיות</div>
   </div>
 
   <!-- Search -->
@@ -194,6 +196,58 @@
       <div id="wcStats" class="stats" style="display:none"></div>
       <div id="wcStatus" class="meta">הזן מילה לחיפוש</div>
       <div id="wcResults" class="results"></div>
+    </div>
+  </div>
+
+  <!-- Roshei/Sofei Tevot -->
+  <div id="rosheiTab" class="tab-content">
+    <div class="card no-top">
+      <div class="row">
+        <div>
+          <label>מילה לחיפוש</label>
+          <input id="rtWord" type="text" placeholder="אמת" style="width:120px">
+        </div>
+        <div>
+          <label>מצב</label>
+          <select id="rtMode">
+            <option value="first">ראשי תיבות (אות ראשונה)</option>
+            <option value="last">סופי תיבות (אות אחרונה)</option>
+            <option value="1">אות שנייה</option>
+            <option value="2">אות שלישית</option>
+          </select>
+        </div>
+        <div><label>&nbsp;</label><button id="rtBtn">חפש</button></div>
+      </div>
+      <div id="rtErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="rtStats" class="stats" style="display:none"></div>
+      <div id="rtStatus" class="meta">הזן מילה לחיפוש</div>
+      <div id="rtResults" class="results"></div>
+    </div>
+  </div>
+
+  <!-- ELS (Equidistant Letter Sequences) -->
+  <div id="elsTab" class="tab-content">
+    <div class="card no-top">
+      <div class="row">
+        <div>
+          <label>מילה לחיפוש (2-10 אותיות)</label>
+          <input id="elsWord" type="text" placeholder="תורה" style="width:120px" maxlength="10">
+        </div>
+        <div>
+          <label>דילוג מקסימלי</label>
+          <input id="elsMax" type="number" value="100" min="1" max="500" style="width:80px">
+        </div>
+        <div><label>&nbsp;</label><button id="elsBtn">חפש</button></div>
+      </div>
+      <div class="hint">חיפוש דילוגי אותיות שווים - עשוי לקחת זמן</div>
+      <div id="elsErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="elsStats" class="stats" style="display:none"></div>
+      <div id="elsStatus" class="meta">הזן מילה לחיפוש</div>
+      <div id="elsResults" class="results"></div>
     </div>
   </div>
 </main>
@@ -479,6 +533,79 @@ async function doWordSearch(){
 }
 $('wcBtn').onclick=doWordSearch;
 $('wcWord').onkeydown=e=>{if(e.key==='Enter')doWordSearch();};
+
+// Roshei/Sofei Tevot Search
+async function doRosheiSearch(){
+  const word=$('rtWord').value.trim();
+  if(!word){$('rtErr').textContent='הזן מילה';$('rtErr').style.display='block';return;}
+
+  const mode=$('rtMode').value;
+  $('rtBtn').disabled=true;$('rtStatus').textContent='מחפש...';$('rtResults').innerHTML='';$('rtErr').style.display='none';$('rtStats').style.display='none';
+
+  try{
+    const data=await(await fetch(`/roshei-tevot?word=${encodeURIComponent(word)}&mode=${mode}`)).json();
+
+    $('rtStats').innerHTML=`
+      <div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div>
+      <div class="stat"><b>${data.mode}</b><span>מצב חיפוש</span></div>
+    `;
+    $('rtStats').style.display='flex';
+
+    if(data.count===0){
+      $('rtStatus').textContent='לא נמצאו תוצאות';
+    }else{
+      $('rtStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
+      $('rtResults').innerHTML=data.matches.map(m=>{
+        const wordsHtml=m.words.map((w,i)=>`<mark>${w}</mark>`).join(' ');
+        return `<div class="hit">
+          <div><span class="ref">${m.ref}</span><span class="pill">${m.letters}</span></div>
+          <div class="text">${m.verse_text}</div>
+          <div class="meta">מילים: ${wordsHtml}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    $('rtErr').textContent=e.message||'שגיאה';$('rtErr').style.display='block';
+  }
+  $('rtBtn').disabled=false;
+}
+$('rtBtn').onclick=doRosheiSearch;
+$('rtWord').onkeydown=e=>{if(e.key==='Enter')doRosheiSearch();};
+
+// ELS Search
+async function doElsSearch(){
+  const word=$('elsWord').value.trim();
+  if(!word||word.length<2){$('elsErr').textContent='הזן לפחות 2 אותיות';$('elsErr').style.display='block';return;}
+
+  const maxSkip=$('elsMax').value||100;
+  $('elsBtn').disabled=true;$('elsStatus').textContent='מחפש... (עשוי לקחת זמן)';$('elsResults').innerHTML='';$('elsErr').style.display='none';$('elsStats').style.display='none';
+
+  try{
+    const data=await(await fetch(`/els?word=${encodeURIComponent(word)}&max_skip=${maxSkip}`)).json();
+
+    $('elsStats').innerHTML=`
+      <div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div>
+      <div class="stat"><b>${data.search_word}</b><span>מילה</span></div>
+    `;
+    $('elsStats').style.display='flex';
+
+    if(data.count===0){
+      $('elsStatus').textContent='לא נמצאו תוצאות';
+    }else{
+      $('elsStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
+      $('elsResults').innerHTML=data.matches.map(m=>`<div class="hit">
+        <div><span class="ref">${m.ref_start}</span><span class="pill">דילוג: ${m.skip}</span></div>
+        <div class="text" dir="rtl">${m.context}</div>
+        <div class="meta">מ: ${m.ref_start} עד: ${m.ref_end}</div>
+      </div>`).join('');
+    }
+  }catch(e){
+    $('elsErr').textContent=e.message||'שגיאה';$('elsErr').style.display='block';
+  }
+  $('elsBtn').disabled=false;
+}
+$('elsBtn').onclick=doElsSearch;
+$('elsWord').onkeydown=e=>{if(e.key==='Enter')doElsSearch();};
 </script>
 </body>
 </html>
