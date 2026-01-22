@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>חיפוש גימטריה בתנ״ך</title>
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:0; background:#f6f7fb;}
@@ -14,10 +14,12 @@
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
     label{font-size:13px;color:#374151;display:block;margin-bottom:6px}
     input,select{padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;min-width:180px;font-size:14px;background:#fff}
-    input[type="number"]{min-width:160px}
+    input[type="number"]{min-width:80px}
     input[type="text"]{min-width:260px}
     button{padding:10px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
     button:disabled{opacity:.6;cursor:not-allowed}
+    button.secondary{background:#e5e7eb;color:#374151}
+    button.secondary.active{background:#2563eb;color:#fff}
     .hint{font-size:12px;color:#6b7280;margin-top:10px;line-height:1.5}
     .results{margin-top:10px}
     .pill{display:inline-block;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;margin-inline-start:8px}
@@ -39,26 +41,26 @@
     .tab-content.active{display:block}
     .card.no-top-radius{border-radius:0 0 14px 14px;margin-top:0}
     /* Histogram Styles */
-    .histogram-controls{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-    .histogram-controls button{padding:8px 12px;font-size:12px}
-    .histogram-controls input[type="number"]{min-width:100px;padding:8px 10px;font-size:14px}
-    .zoom-info{font-size:12px;color:#6b7280;margin-right:auto}
-    .gematria-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .gematria-nav label{font-size:13px;color:#374151;margin:0}
-    .histogram-container{position:relative;width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:20px;touch-action:pan-x pinch-zoom}
-    .histogram-wrapper{transform-origin:left center;transition:transform 0.1s ease-out}
-    .histogram{display:flex;align-items:flex-end;gap:1px;min-height:300px;padding:20px 10px 40px;position:relative}
-    .histogram-bar{background:linear-gradient(to top,#2563eb,#3b82f6);min-width:2px;cursor:pointer;border-radius:2px 2px 0 0;transition:background .15s;position:relative;flex-shrink:0}
-    .histogram-bar:hover{background:linear-gradient(to top,#1d4ed8,#2563eb)}
-    .histogram-bar.selected{background:linear-gradient(to top,#dc2626,#ef4444)}
-    .histogram-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .histogram-controls{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+    .histogram-controls input[type="number"]{min-width:70px;padding:8px;font-size:13px}
+    .histogram-controls button{padding:6px 10px;font-size:12px}
+    .range-presets{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+    .range-presets button{padding:6px 10px;font-size:11px}
+    .histogram-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
     .stat-item{background:#eef2ff;padding:8px 14px;border-radius:10px}
     .stat-value{font-size:18px;font-weight:700;color:#2563eb}
     .stat-label{font-size:11px;color:#6b7280;margin-top:2px}
+    .histogram-container{position:relative;width:100%;overflow-x:auto;padding:10px 0}
+    .histogram{display:flex;align-items:flex-end;gap:2px;min-height:200px;padding:10px}
+    .histogram-bar{background:linear-gradient(to top,#2563eb,#3b82f6);min-width:8px;cursor:pointer;border-radius:3px 3px 0 0;transition:all .15s;flex-shrink:0}
+    .histogram-bar:hover{background:linear-gradient(to top,#1d4ed8,#2563eb);transform:scaleY(1.05)}
+    .histogram-bar.selected{background:linear-gradient(to top,#dc2626,#ef4444)}
+    .bar-label{position:absolute;bottom:-18px;font-size:9px;color:#6b7280;white-space:nowrap;transform:rotate(-45deg);transform-origin:top right}
     .loading-histogram{text-align:center;padding:40px;color:#6b7280}
     .loading-histogram .spinner{border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto 10px}
     @keyframes spin{to{transform:rotate(360deg)}}
-    /* Modal for histogram details */
+    .range-info{font-size:12px;color:#6b7280;padding:8px 12px;background:#f9fafb;border-radius:8px;margin-bottom:12px}
+    /* Modal */
     .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:1000;display:none;justify-content:center;align-items:center;padding:20px}
     .modal-overlay.visible{display:flex}
     .modal{background:#fff;border-radius:16px;max-width:500px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -73,23 +75,23 @@
     .modal-item-text{font-size:14px;line-height:1.6;color:#374151}
     .modal-item-word{background:#dbeafe;padding:2px 8px;border-radius:6px;font-weight:600;margin-left:8px}
     .modal-stats{color:#6b7280;font-size:13px}
+    .no-data{text-align:center;padding:40px;color:#6b7280}
   </style>
 </head>
 <body>
 <header>
   <h1>חיפוש גימטריה בתנ״ך</h1>
-  <p>חפש לפי מספר או לפי טקסט בעברית (האפליקציה מחשבת גימטריה ואז מחפשת התאמות).</p>
+  <p>חפש לפי מספר או לפי טקסט בעברית</p>
 </header>
 
 <main>
-  <!-- Tab Navigation -->
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
     <div class="tab" data-tab="histogram">📊 פסוקים</div>
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
   </div>
 
-  <!-- Search Tab Content -->
+  <!-- Search Tab -->
   <div id="searchTab" class="tab-content active">
   <div class="card no-top-radius">
     <div class="row">
@@ -100,17 +102,14 @@
           <option value="text">לפי טקסט בעברית</option>
         </select>
       </div>
-
       <div id="numWrap">
         <label for="value">מספר גימטריה</label>
         <input id="value" type="number" min="0" placeholder="לדוגמה: 347" />
       </div>
-
       <div id="txtWrap" style="display:none;">
         <label for="text">טקסט בעברית</label>
         <input id="text" type="text" placeholder="לדוגמה: שלום" />
       </div>
-
       <div>
         <label for="kind">סוג תוצאה</label>
         <select id="kind">
@@ -120,121 +119,92 @@
           <option value="gram">רצפי מילים</option>
         </select>
       </div>
-
       <div>
-        <label for="n">אורך רצף (n)</label>
-        <select id="n">
-          <option value="">כל האורכים</option>
-          <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-          <option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+        <label for="limit">מקסימום</label>
+        <select id="limit">
+          <option value="" selected>הכול</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="500">500</option>
         </select>
       </div>
-
-      <div>
-        <label for="limit">מקסימום תוצאות</label>
-<select id="limit">
-  <option value="" selected>הכול (ברירת מחדל)</option>
-  <option value="25">25</option>
-  <option value="50">50</option>
-  <option value="100">100</option>
-  <option value="200">200</option>
-  <option value="500">500</option>
-  <option value="1000">1000</option>
-</select>
-      </div>
-
       <div>
         <button id="btn">חפש</button>
       </div>
     </div>
-
-    <div class="hint">
-      במצב "טקסט בעברית" האפליקציה מחשבת גימטריה (מתעלמת מניקוד/טעמים/פיסוק) ואז מחפשת.<br/>
-      הנתונים מגיעים מ־SQLite מקומי (tanakh.sqlite) בתוך הבאנדל.
-    </div>
-
     <div id="calc" class="note" style="display:none;"></div>
     <div id="err" class="error" style="display:none;"></div>
   </div>
-
   <div class="card">
-    <div class="row" style="justify-content:space-between;align-items:center">
-      <div class="meta" id="status">מוכן.</div>
-      <div class="meta">API: <code>/search</code> • Gematria: <code>/gematria</code> • Docs: <code>/docs</code></div>
-    </div>
+    <div class="meta" id="status">מוכן.</div>
     <div class="results" id="results"></div>
     <div class="footer" id="footer"></div>
   </div>
-  </div><!-- End Search Tab -->
+  </div>
 
-  <!-- Histogram (Verses) Tab Content -->
+  <!-- Verses Histogram Tab -->
   <div id="histogramTab" class="tab-content">
     <div class="card no-top-radius">
-      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 היסטוגרמה: פסוקים לפי ערך גימטריה</h2>
-      <p class="hint" style="margin-bottom:12px">לחץ על עמודה לראות את הפסוקים. צבוט לזום, או השתמש בכפתורים.</p>
+      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 פסוקים לפי גימטריה</h2>
 
       <div id="histogramStats" class="histogram-stats"></div>
 
+      <div class="range-presets" id="versesPresets"></div>
+
       <div class="histogram-controls">
-        <div class="gematria-nav">
-          <label>קפוץ לגימטריה:</label>
-          <input type="number" id="jumpToVerses" placeholder="הזן מספר" min="1">
-          <button onclick="jumpToGematria('verses')">🔍 מצא</button>
-        </div>
-        <button onclick="zoomHistogram('verses', -0.2)">➖</button>
-        <button onclick="zoomHistogram('verses', 0.2)">➕</button>
-        <button onclick="resetZoom('verses')">↺</button>
-        <span id="zoomInfoVerses" class="zoom-info">100%</span>
+        <label style="margin:0">טווח:</label>
+        <input type="number" id="versesMin" placeholder="מ-">
+        <span>-</span>
+        <input type="number" id="versesMax" placeholder="עד">
+        <button onclick="applyRange('verses')">הצג</button>
+        <button class="secondary" onclick="jumpToGematria('verses')">קפוץ לערך</button>
       </div>
+
+      <div id="versesRangeInfo" class="range-info" style="display:none"></div>
 
       <div id="histogramLoading" class="loading-histogram">
         <div class="spinner"></div>
-        <div>טוען נתוני היסטוגרמה...</div>
+        <div>טוען...</div>
       </div>
 
       <div id="histogramContainer" class="histogram-container" style="display:none">
-        <div id="histogramWrapper" class="histogram-wrapper">
-          <div id="histogram" class="histogram"></div>
-        </div>
+        <div id="histogram" class="histogram"></div>
       </div>
     </div>
-  </div><!-- End Histogram Tab -->
+  </div>
 
-  <!-- Histogram (Words) Tab Content -->
+  <!-- Words Histogram Tab -->
   <div id="histogramWordsTab" class="tab-content">
     <div class="card no-top-radius">
-      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 היסטוגרמה: מילים לפי ערך גימטריה</h2>
-      <p class="hint" style="margin-bottom:12px">לחץ על עמודה לראות את המילים. צבוט לזום, או השתמש בכפתורים.</p>
+      <h2 style="margin:0 0 12px;font-size:16px;color:#111827">📊 מילים לפי גימטריה</h2>
 
       <div id="histogramWordsStats" class="histogram-stats"></div>
 
+      <div class="range-presets" id="wordsPresets"></div>
+
       <div class="histogram-controls">
-        <div class="gematria-nav">
-          <label>קפוץ לגימטריה:</label>
-          <input type="number" id="jumpToWords" placeholder="הזן מספר" min="1">
-          <button onclick="jumpToGematria('words')">🔍 מצא</button>
-        </div>
-        <button onclick="zoomHistogram('words', -0.2)">➖</button>
-        <button onclick="zoomHistogram('words', 0.2)">➕</button>
-        <button onclick="resetZoom('words')">↺</button>
-        <span id="zoomInfoWords" class="zoom-info">100%</span>
+        <label style="margin:0">טווח:</label>
+        <input type="number" id="wordsMin" placeholder="מ-">
+        <span>-</span>
+        <input type="number" id="wordsMax" placeholder="עד">
+        <button onclick="applyRange('words')">הצג</button>
+        <button class="secondary" onclick="jumpToGematria('words')">קפוץ לערך</button>
       </div>
+
+      <div id="wordsRangeInfo" class="range-info" style="display:none"></div>
 
       <div id="histogramWordsLoading" class="loading-histogram">
         <div class="spinner"></div>
-        <div>טוען נתוני היסטוגרמה...</div>
+        <div>טוען...</div>
       </div>
 
       <div id="histogramWordsContainer" class="histogram-container" style="display:none">
-        <div id="histogramWordsWrapper" class="histogram-wrapper">
-          <div id="histogramWords" class="histogram"></div>
-        </div>
+        <div id="histogramWords" class="histogram"></div>
       </div>
     </div>
-  </div><!-- End Histogram Words Tab -->
+  </div>
 </main>
 
-<!-- Modal for histogram details -->
 <div id="modal" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
@@ -246,362 +216,264 @@
 </div>
 
 <script>
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-function showError(msg){
+// ========== Search Tab ==========
+function showError(msg) {
   $("err").style.display = msg ? "block" : "none";
   $("err").textContent = msg || "";
 }
 
-function showCalc(msg){
+function showCalc(msg) {
   $("calc").style.display = msg ? "block" : "none";
   $("calc").textContent = msg || "";
 }
 
-function kindLabel(k){
-  if(k === "verse") return "פסוק";
-  if(k === "word") return "מילה";
-  if(k === "gram") return "רצף";
-  return k;
+function kindLabel(k) {
+  return {verse: "פסוק", word: "מילה", gram: "רצף"}[k] || k;
 }
 
-function syncMode(){
+function syncMode() {
   const mode = $("mode").value;
-  $("numWrap").style.display = (mode === "number") ? "block" : "none";
-  $("txtWrap").style.display = (mode === "text") ? "block" : "none";
-  showCalc("");
-  showError("");
+  $("numWrap").style.display = mode === "number" ? "block" : "none";
+  $("txtWrap").style.display = mode === "text" ? "block" : "none";
+  showCalc(""); showError("");
 }
 $("mode").addEventListener("change", syncMode);
 
-async function doSearch(){
-  showError("");
-  showCalc("");
-
+async function doSearch() {
+  showError(""); showCalc("");
   const mode = $("mode").value;
   const kind = $("kind").value;
-  const n = $("n").value;
   const limit = $("limit").value;
-
   const params = new URLSearchParams();
-  if(limit) params.set("limit", limit);
-  params.set("db", "tanakh.sqlite");
-  if(kind) params.set("kind", kind);
-  if(kind === "gram" && n) params.set("n", n);
+  if (limit) params.set("limit", limit);
+  if (kind) params.set("kind", kind);
 
-  let computed = null;
-
-  if(mode === "number"){
+  if (mode === "number") {
     const value = $("value").value.trim();
-    if(!value){
-      showError("נא להזין מספר גימטריה.");
-      return;
-    }
+    if (!value) { showError("נא להזין מספר."); return; }
     params.set("value", value);
-  }else{
+  } else {
     const text = $("text").value.trim();
-    if(!text){
-      showError("נא להזין טקסט בעברית.");
-      return;
-    }
-    try{
-      const gRes = await fetch("/gematria?text=" + encodeURIComponent(text));
-      if(!gRes.ok) throw new Error("לא הצלחתי לחשב גימטריה לטקסט.");
-      const g = await gRes.json();
-      computed = g.gematria;
-      showCalc(`הגימטריה של "${text}" היא: ${computed}`);
-    }catch(e){
-      showError(e.message || String(e));
-      return;
-    }
+    if (!text) { showError("נא להזין טקסט."); return; }
+    try {
+      const g = await (await fetch("/gematria?text=" + encodeURIComponent(text))).json();
+      showCalc(`גימטריה: ${g.gematria}`);
+    } catch(e) { showError(e.message); return; }
     params.set("text", text);
   }
 
   $("btn").disabled = true;
   $("status").textContent = "מחפש...";
   $("results").innerHTML = "";
-  $("footer").textContent = "";
 
-  try{
-    const res = await fetch("/search?" + params.toString());
-    if(!res.ok){
-      const txt = await res.text();
-      throw new Error("שגיאת שרת: " + res.status + " " + txt);
-    }
-    const data = await res.json();
-
+  try {
+    const data = await (await fetch("/search?" + params)).json();
     $("status").textContent = `נמצאו ${data.length} תוצאות.`;
-    if(data.length === 0){
-      $("results").innerHTML = "<div class='meta'>אין התאמות.</div>";
-      return;
-    }
+    if (!data.length) { $("results").innerHTML = "<div class='meta'>אין התאמות.</div>"; return; }
 
-    const frag = document.createDocumentFragment();
-    data.forEach(h => {
-      const div = document.createElement("div");
-      div.className = "hit";
-      const top = document.createElement("div");
-      top.className = "top";
-      const left = document.createElement("div");
-      left.innerHTML = `<span class="ref">${h.ref}</span> <span class="pill">${kindLabel(h.kind)}${h.n ? " • n=" + h.n : ""}</span>`;
-      const right = document.createElement("div");
-      right.className = "meta";
-      right.textContent = "גימטריה: " + h.gematria;
-      top.appendChild(left);
-      top.appendChild(right);
-      const textDiv = document.createElement("div");
-      textDiv.className = "text";
-      textDiv.textContent = h.text;
-      div.appendChild(top);
-      div.appendChild(textDiv);
-      if(h.kind === "word" || h.kind === "gram"){
-        const match = document.createElement("div");
-        match.className = "small";
-        const rng = h.match_range ? (" • " + h.match_range) : "";
-        match.textContent = "התאמה: " + (h.match_text || "") + rng;
-        div.appendChild(match);
-      }
-      const small = document.createElement("div");
-      small.className = "small";
-      small.textContent = "טקסט מנורמל: " + h.clean_text;
-      div.appendChild(small);
-      frag.appendChild(div);
-    });
-    $("results").appendChild(frag);
-    $("footer").textContent = "אפשר לפתוח /docs כדי לבדוק את ה־API ולהריץ חיפושים נוספים.";
-  }catch(e){
-    showError(e.message || String(e));
-    $("status").textContent = "תקלה.";
-  }finally{
+    $("results").innerHTML = data.map(h => `
+      <div class="hit">
+        <div class="top">
+          <div><span class="ref">${h.ref}</span><span class="pill">${kindLabel(h.kind)}</span></div>
+          <div class="meta">גימטריה: ${h.gematria}</div>
+        </div>
+        <div class="text">${h.text}</div>
+        ${h.match_text ? `<div class="small">התאמה: ${h.match_text}</div>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {
+    showError(e.message);
+  } finally {
     $("btn").disabled = false;
   }
 }
 
 $("btn").addEventListener("click", doSearch);
-$("value").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch(); });
-$("text").addEventListener("keydown", (e) => { if(e.key === "Enter") doSearch(); });
-
+$("value").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
+$("text").addEventListener("keydown", e => { if(e.key === "Enter") doSearch(); });
 syncMode();
 
-// ========== Tab Navigation ==========
+// ========== Tabs ==========
 const tabs = document.querySelectorAll('.tab');
-const tabContents = document.querySelectorAll('.tab-content');
-
 tabs.forEach(tab => {
   tab.addEventListener('click', () => {
-    const targetTab = tab.dataset.tab;
-    tabs.forEach(t => t.classList.remove('active'));
+    const t = tab.dataset.tab;
+    tabs.forEach(x => x.classList.remove('active'));
     tab.classList.add('active');
-    tabContents.forEach(content => content.classList.remove('active'));
-    document.getElementById(targetTab + 'Tab').classList.add('active');
-
-    if (targetTab === 'histogram' && !histogramVersesLoaded) {
-      loadHistogramVerses();
-    }
-    if (targetTab === 'histogramWords' && !histogramWordsLoaded) {
-      loadHistogramWords();
-    }
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    $(t + 'Tab').classList.add('active');
+    if (t === 'histogram' && !versesLoaded) loadHistogram('verses');
+    if (t === 'histogramWords' && !wordsLoaded) loadHistogram('words');
   });
 });
 
-// ========== Histogram Data ==========
-let histogramVersesData = [];
-let histogramWordsData = [];
-let histogramVersesLoaded = false;
-let histogramWordsLoaded = false;
-let zoomLevels = { verses: 1, words: 1 };
+// ========== Histogram ==========
+let versesData = [], wordsData = [];
+let versesLoaded = false, wordsLoaded = false;
+let currentRange = { verses: { min: 0, max: 0 }, words: { min: 0, max: 0 } };
 let selectedBar = null;
 
-// ========== Zoom Functions ==========
-function zoomHistogram(type, delta) {
-  zoomLevels[type] = Math.max(0.05, Math.min(5, zoomLevels[type] + delta));
-  applyZoom(type);
-}
-
-function resetZoom(type) {
-  zoomLevels[type] = 1;
-  applyZoom(type);
-}
-
-function applyZoom(type) {
-  const wrapper = type === 'verses' ? $('histogramWrapper') : $('histogramWordsWrapper');
-  const info = type === 'verses' ? $('zoomInfoVerses') : $('zoomInfoWords');
-  wrapper.style.transform = `scaleX(${zoomLevels[type]})`;
-  info.textContent = `זום: ${Math.round(zoomLevels[type] * 100)}%`;
-}
-
-// Pinch-to-zoom support
-function setupPinchZoom(container, type) {
-  let initialDistance = 0;
-  let initialZoom = 1;
-
-  container.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-      initialDistance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      initialZoom = zoomLevels[type];
-    }
-  }, { passive: true });
-
-  container.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2) {
-      const currentDistance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      const scale = currentDistance / initialDistance;
-      zoomLevels[type] = Math.max(0.05, Math.min(5, initialZoom * scale));
-      applyZoom(type);
-    }
-  }, { passive: true });
-}
-
-// ========== Load Verses Histogram ==========
-async function loadHistogramVerses() {
-  const loading = $('histogramLoading');
-  const container = $('histogramContainer');
-  const statsDiv = $('histogramStats');
+async function loadHistogram(type) {
+  const isVerses = type === 'verses';
+  const loading = $(isVerses ? 'histogramLoading' : 'histogramWordsLoading');
+  const container = $(isVerses ? 'histogramContainer' : 'histogramWordsContainer');
+  const statsDiv = $(isVerses ? 'histogramStats' : 'histogramWordsStats');
+  const presetsDiv = $(isVerses ? 'versesPresets' : 'wordsPresets');
 
   try {
-    const res = await fetch('/histogram');
-    if (!res.ok) throw new Error('Failed to load histogram data');
+    const url = isVerses ? '/histogram' : '/histogram/words';
+    const data = await (await fetch(url)).json();
 
-    histogramVersesData = await res.json();
-    histogramVersesLoaded = true;
+    if (isVerses) { versesData = data; versesLoaded = true; }
+    else { wordsData = data; wordsLoaded = true; }
 
-    const totalItems = histogramVersesData.reduce((sum, b) => sum + b.count, 0);
-    const uniqueValues = histogramVersesData.length;
-    const maxCount = Math.max(...histogramVersesData.map(b => b.count));
-    const minGem = histogramVersesData[0]?.gematria || 0;
-    const maxGem = histogramVersesData[histogramVersesData.length - 1]?.gematria || 0;
+    const total = data.reduce((s, b) => s + b.count, 0);
+    const minGem = data[0]?.gematria || 0;
+    const maxGem = data[data.length - 1]?.gematria || 0;
+    const maxCount = Math.max(...data.map(b => b.count));
 
     statsDiv.innerHTML = `
-      <div class="stat-item"><div class="stat-value">${totalItems.toLocaleString()}</div><div class="stat-label">סה״כ פסוקים</div></div>
-      <div class="stat-item"><div class="stat-value">${uniqueValues.toLocaleString()}</div><div class="stat-label">ערכים שונים</div></div>
-      <div class="stat-item"><div class="stat-value">${minGem.toLocaleString()}-${maxGem.toLocaleString()}</div><div class="stat-label">טווח</div></div>
-      <div class="stat-item"><div class="stat-value">${maxCount}</div><div class="stat-label">מקסימום</div></div>
+      <div class="stat-item"><div class="stat-value">${total.toLocaleString()}</div><div class="stat-label">סה״כ ${isVerses ? 'פסוקים' : 'מילים'}</div></div>
+      <div class="stat-item"><div class="stat-value">${data.length.toLocaleString()}</div><div class="stat-label">ערכים שונים</div></div>
+      <div class="stat-item"><div class="stat-value">${minGem}-${maxGem}</div><div class="stat-label">טווח</div></div>
     `;
 
-    renderHistogram('verses', histogramVersesData, $('histogram'), maxCount);
-    setupPinchZoom(container, 'verses');
-    setupHistogramClick(container, $('histogram'), 'verses');
+    // Create range presets
+    const ranges = [];
+    for (let i = minGem; i <= maxGem; i += 500) {
+      ranges.push({ min: i, max: Math.min(i + 499, maxGem) });
+    }
+    presetsDiv.innerHTML = ranges.slice(0, 20).map(r =>
+      `<button class="secondary" onclick="setRange('${type}', ${r.min}, ${r.max})">${r.min}-${r.max}</button>`
+    ).join('');
 
+    // Set initial range (first 500)
+    currentRange[type] = { min: minGem, max: Math.min(minGem + 499, maxGem) };
+    $(isVerses ? 'versesMin' : 'wordsMin').value = currentRange[type].min;
+    $(isVerses ? 'versesMax' : 'wordsMax').value = currentRange[type].max;
+
+    renderHistogram(type);
     loading.style.display = 'none';
     container.style.display = 'block';
-  } catch (e) {
+  } catch(e) {
     loading.innerHTML = `<div class="error">שגיאה: ${e.message}</div>`;
   }
 }
 
-// ========== Load Words Histogram ==========
-async function loadHistogramWords() {
-  const loading = $('histogramWordsLoading');
-  const container = $('histogramWordsContainer');
-  const statsDiv = $('histogramWordsStats');
+function setRange(type, min, max) {
+  currentRange[type] = { min, max };
+  const isVerses = type === 'verses';
+  $(isVerses ? 'versesMin' : 'wordsMin').value = min;
+  $(isVerses ? 'versesMax' : 'wordsMax').value = max;
+  renderHistogram(type);
 
-  try {
-    const res = await fetch('/histogram/words');
-    if (!res.ok) throw new Error('Failed to load histogram data');
-
-    histogramWordsData = await res.json();
-    histogramWordsLoaded = true;
-
-    const totalItems = histogramWordsData.reduce((sum, b) => sum + b.count, 0);
-    const uniqueValues = histogramWordsData.length;
-    const maxCount = Math.max(...histogramWordsData.map(b => b.count));
-    const minGem = histogramWordsData[0]?.gematria || 0;
-    const maxGem = histogramWordsData[histogramWordsData.length - 1]?.gematria || 0;
-
-    statsDiv.innerHTML = `
-      <div class="stat-item"><div class="stat-value">${totalItems.toLocaleString()}</div><div class="stat-label">סה״כ מילים</div></div>
-      <div class="stat-item"><div class="stat-value">${uniqueValues.toLocaleString()}</div><div class="stat-label">ערכים שונים</div></div>
-      <div class="stat-item"><div class="stat-value">${minGem.toLocaleString()}-${maxGem.toLocaleString()}</div><div class="stat-label">טווח</div></div>
-      <div class="stat-item"><div class="stat-value">${maxCount}</div><div class="stat-label">מקסימום</div></div>
-    `;
-
-    renderHistogram('words', histogramWordsData, $('histogramWords'), maxCount);
-    setupPinchZoom(container, 'words');
-    setupHistogramClick(container, $('histogramWords'), 'words');
-
-    loading.style.display = 'none';
-    container.style.display = 'block';
-  } catch (e) {
-    loading.innerHTML = `<div class="error">שגיאה: ${e.message}</div>`;
-  }
-}
-
-// ========== Render Histogram ==========
-function renderHistogram(type, data, container, maxCount) {
-  container.innerHTML = '';
-  const height = 250;
-
-  data.forEach((bucket, idx) => {
-    const bar = document.createElement('div');
-    bar.className = 'histogram-bar';
-    const barHeight = Math.max(2, (bucket.count / maxCount) * height);
-    bar.style.height = barHeight + 'px';
-
-    bar.addEventListener('click', () => {
-      // Deselect previous
-      if (selectedBar) selectedBar.classList.remove('selected');
-      bar.classList.add('selected');
-      selectedBar = bar;
-      showModal(type, bucket);
-    });
-
-    container.appendChild(bar);
+  // Update active button
+  const presets = $(isVerses ? 'versesPresets' : 'wordsPresets').querySelectorAll('button');
+  presets.forEach(b => {
+    const [bMin, bMax] = b.textContent.split('-').map(Number);
+    b.classList.toggle('active', bMin === min && bMax === max);
   });
 }
 
+function applyRange(type) {
+  const isVerses = type === 'verses';
+  const min = parseInt($(isVerses ? 'versesMin' : 'wordsMin').value) || 0;
+  const max = parseInt($(isVerses ? 'versesMax' : 'wordsMax').value) || 99999;
+  setRange(type, min, max);
+}
+
+function renderHistogram(type) {
+  const isVerses = type === 'verses';
+  const data = isVerses ? versesData : wordsData;
+  const container = $(isVerses ? 'histogram' : 'histogramWords');
+  const infoDiv = $(isVerses ? 'versesRangeInfo' : 'wordsRangeInfo');
+  const { min, max } = currentRange[type];
+
+  // Filter data by range
+  const filtered = data.filter(b => b.gematria >= min && b.gematria <= max);
+
+  if (!filtered.length) {
+    container.innerHTML = '<div class="no-data">אין נתונים בטווח זה</div>';
+    infoDiv.style.display = 'none';
+    return;
+  }
+
+  const maxCount = Math.max(...filtered.map(b => b.count));
+  const height = 180;
+  const barWidth = Math.max(12, Math.min(40, Math.floor((container.parentElement.clientWidth - 40) / filtered.length)));
+
+  container.innerHTML = filtered.map((bucket, i) => {
+    const barHeight = Math.max(4, (bucket.count / maxCount) * height);
+    return `<div class="histogram-bar" style="height:${barHeight}px;width:${barWidth}px" data-idx="${i}" onclick="showBucketModal('${type}', ${data.indexOf(bucket)})"></div>`;
+  }).join('');
+
+  infoDiv.textContent = `מציג ${filtered.length} ערכים (${min} עד ${max}) • לחץ על עמודה לפרטים`;
+  infoDiv.style.display = 'block';
+}
+
+function jumpToGematria(type) {
+  const isVerses = type === 'verses';
+  const input = $(isVerses ? 'versesMin' : 'wordsMin');
+  const target = parseInt(input.value) || 0;
+
+  // Set range around target (±250)
+  const min = Math.max(1, target - 250);
+  const max = target + 250;
+  setRange(type, min, max);
+
+  // Find and click the target bar
+  const data = isVerses ? versesData : wordsData;
+  const idx = data.findIndex(b => b.gematria >= target);
+  if (idx >= 0) {
+    setTimeout(() => showBucketModal(type, idx), 100);
+  }
+}
+
 // ========== Modal ==========
-function showModal(type, bucket) {
-  const modal = $('modal');
-  const title = $('modalTitle');
-  const body = $('modalBody');
+function showBucketModal(type, dataIdx) {
+  const data = type === 'verses' ? versesData : wordsData;
+  const bucket = data[dataIdx];
+  if (!bucket) return;
+
+  // Highlight bar
+  document.querySelectorAll('.histogram-bar').forEach(b => b.classList.remove('selected'));
+  const bars = $(type === 'verses' ? 'histogram' : 'histogramWords').querySelectorAll('.histogram-bar');
+  const filtered = data.filter(b => b.gematria >= currentRange[type].min && b.gematria <= currentRange[type].max);
+  const filteredIdx = filtered.indexOf(bucket);
+  if (filteredIdx >= 0 && bars[filteredIdx]) bars[filteredIdx].classList.add('selected');
 
   const isVerses = type === 'verses';
   const items = isVerses ? bucket.verses : bucket.words;
-  const itemLabel = isVerses ? 'פסוקים' : 'מילים';
+  const label = isVerses ? 'פסוקים' : 'מילים';
 
-  title.textContent = `גימטריה: ${bucket.gematria.toLocaleString()} (${bucket.count} ${itemLabel})`;
-
-  const itemsHtml = items.slice(0, 100).map(item => {
+  $('modalTitle').textContent = `גימטריה: ${bucket.gematria} (${bucket.count} ${label})`;
+  $('modalBody').innerHTML = items.slice(0, 100).map(item => {
     if (isVerses) {
-      return `
-        <div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'verse')">
-          <div class="modal-item-ref">${item.ref}</div>
-          <div class="modal-item-text">${item.text}</div>
-        </div>
-      `;
+      return `<div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'verse')">
+        <div class="modal-item-ref">${item.ref}</div>
+        <div class="modal-item-text">${item.text}</div>
+      </div>`;
     } else {
-      return `
-        <div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'word')">
-          <div class="modal-item-ref">${item.ref} <span class="modal-item-word">${item.word}</span></div>
-          <div class="modal-item-text">${item.verse_text}</div>
-        </div>
-      `;
+      return `<div class="modal-item" onclick="searchFromModal(${bucket.gematria}, 'word')">
+        <div class="modal-item-ref">${item.ref}<span class="modal-item-word">${item.word}</span></div>
+        <div class="modal-item-text">${item.verse_text}</div>
+      </div>`;
     }
-  }).join('');
+  }).join('') + (items.length > 100 ? `<div class="modal-stats">מציג 100 מתוך ${items.length}</div>` : '');
 
-  const moreText = items.length > 100 ? `<div class="modal-stats">מציג 100 מתוך ${items.length}</div>` : '';
-
-  body.innerHTML = itemsHtml + moreText;
-  modal.classList.add('visible');
+  $('modal').classList.add('visible');
 }
 
 function closeModal() {
   $('modal').classList.remove('visible');
-  if (selectedBar) {
-    selectedBar.classList.remove('selected');
-    selectedBar = null;
-  }
+  document.querySelectorAll('.histogram-bar.selected').forEach(b => b.classList.remove('selected'));
 }
 
 function searchFromModal(gematria, kind) {
   closeModal();
-  tabs[0].click(); // Switch to search tab
+  tabs[0].click();
   $('mode').value = 'number';
   syncMode();
   $('value').value = gematria;
@@ -609,83 +481,12 @@ function searchFromModal(gematria, kind) {
   doSearch();
 }
 
-// Close modal on overlay click
-$('modal').addEventListener('click', (e) => {
-  if (e.target.id === 'modal') closeModal();
-});
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-// Close modal on Escape key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
-});
-
-// ========== Jump to Gematria ==========
-function jumpToGematria(type) {
-  const input = type === 'verses' ? $('jumpToVerses') : $('jumpToWords');
-  const data = type === 'verses' ? histogramVersesData : histogramWordsData;
-  const container = type === 'verses' ? $('histogramContainer') : $('histogramWordsContainer');
-  const histogramDiv = type === 'verses' ? $('histogram') : $('histogramWords');
-
-  const targetGem = parseInt(input.value);
-  if (!targetGem || !data.length) return;
-
-  // Find closest gematria value
-  let closestIdx = 0;
-  let closestDiff = Math.abs(data[0].gematria - targetGem);
-
-  for (let i = 1; i < data.length; i++) {
-    const diff = Math.abs(data[i].gematria - targetGem);
-    if (diff < closestDiff) {
-      closestDiff = diff;
-      closestIdx = i;
-    }
-  }
-
-  // Select and scroll to that bar
-  const bars = histogramDiv.querySelectorAll('.histogram-bar');
-  if (bars[closestIdx]) {
-    // Deselect previous
-    if (selectedBar) selectedBar.classList.remove('selected');
-    bars[closestIdx].classList.add('selected');
-    selectedBar = bars[closestIdx];
-
-    // Scroll bar into view
-    bars[closestIdx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-
-    // Show modal
-    showModal(type, data[closestIdx]);
-  }
-}
-
-// Enter key on jump input
-$('jumpToVerses')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') jumpToGematria('verses'); });
-$('jumpToWords')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') jumpToGematria('words'); });
-
-// ========== Click anywhere on histogram to find nearest ==========
-function setupHistogramClick(container, histogramDiv, type) {
-  container.addEventListener('click', (e) => {
-    // Only if clicking on the container background, not on a bar
-    if (e.target.classList.contains('histogram-bar')) return;
-    if (e.target.id !== histogramDiv.id && !histogramDiv.contains(e.target)) return;
-
-    const data = type === 'verses' ? histogramVersesData : histogramWordsData;
-    if (!data.length) return;
-
-    const rect = histogramDiv.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const totalWidth = histogramDiv.scrollWidth;
-    const ratio = (clickX + container.scrollLeft) / totalWidth;
-    const idx = Math.min(Math.max(0, Math.floor(ratio * data.length)), data.length - 1);
-
-    const bars = histogramDiv.querySelectorAll('.histogram-bar');
-    if (bars[idx]) {
-      if (selectedBar) selectedBar.classList.remove('selected');
-      bars[idx].classList.add('selected');
-      selectedBar = bars[idx];
-      showModal(type, data[idx]);
-    }
-  });
-}
+// Enter key on range inputs
+['versesMin', 'versesMax'].forEach(id => $(id)?.addEventListener('keydown', e => { if(e.key === 'Enter') applyRange('verses'); }));
+['wordsMin', 'wordsMax'].forEach(id => $(id)?.addEventListener('keydown', e => { if(e.key === 'Enter') applyRange('words'); }));
 </script>
 </body>
 </html>
