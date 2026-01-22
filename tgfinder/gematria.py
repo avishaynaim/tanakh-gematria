@@ -23,7 +23,8 @@ def normalize_hebrew(text: str) -> str:
     if not text:
         return ""
     t = _HEBREW_MARKS_RE.sub("", text)
-    t = t.replace("־", " ")
+    t = t.replace("־", " ")  # Hebrew maqaf
+    t = t.replace("-", " ")  # ASCII hyphen
     t = t.replace("׃", " ")
     t = _NON_HEBREW_LETTERS_RE.sub(" ", t)
     t = t.translate(_FINALS_MAP)
