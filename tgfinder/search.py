@@ -42,18 +42,25 @@ def search(
     n: Optional[int] = None,
     limit: Optional[int] = None,   # None = return all
     offset: int = 0,
+    book: Optional[str] = None,  # Filter by book
 ) -> List[Hit]:
     conn = connect(db_path)
     hits: List[Hit] = []
 
     if kind in (None, "verse"):
         lim_sql, lim_params = _limit_clause(limit, offset)
+        where_clauses = ["gematria=?"]
+        params_list = [value]
+        if book:
+            where_clauses.append("book=?")
+            params_list.append(book)
+        where_sql = " AND ".join(where_clauses)
         sql = (
             "SELECT book,chapter,verse,text,clean_text,gematria FROM verses "
-            "WHERE gematria=? "
+            f"WHERE {where_sql} "
             f"ORDER BY {_BOOK_ORDER_CASE}, chapter, verse" + lim_sql
         )
-        cur = conn.execute(sql, (value, *lim_params))
+        cur = conn.execute(sql, (*params_list, *lim_params))
         for r in cur.fetchall():
             hits.append(Hit(
                 kind="verse",
@@ -72,27 +79,36 @@ def search(
             "ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse "
         )
 
-        where = ""
+        where_clauses = []
         order = ""
-        params: Tuple[Any, ...] = ()
+        params_list = []
 
         if kind == "word":
-            where = "WHERE g.n=1 AND g.gematria=? "
+            where_clauses.append("g.n=1")
+            where_clauses.append("g.gematria=?")
+            params_list.append(value)
             order = f"ORDER BY {_GBOOK_ORDER_CASE}, g.chapter, g.verse, g.start_word "
-            params = (value,)
         elif kind == "gram":
             if n is None:
-                where = "WHERE g.gematria=? "
+                where_clauses.append("g.gematria=?")
+                params_list.append(value)
                 order = f"ORDER BY {_GBOOK_ORDER_CASE}, g.chapter, g.verse, g.start_word, g.n "
-                params = (value,)
             else:
-                where = "WHERE g.n=? AND g.gematria=? "
+                where_clauses.append("g.n=?")
+                where_clauses.append("g.gematria=?")
+                params_list.extend([n, value])
                 order = f"ORDER BY {_GBOOK_ORDER_CASE}, g.chapter, g.verse, g.start_word "
-                params = (n, value)
         else:
-            where = "WHERE g.gematria=? "
+            where_clauses.append("g.gematria=?")
+            params_list.append(value)
             order = f"ORDER BY {_GBOOK_ORDER_CASE}, g.chapter, g.verse, g.start_word, g.n "
-            params = (value,)
+
+        if book:
+            where_clauses.append("g.book=?")
+            params_list.append(book)
+
+        where = "WHERE " + " AND ".join(where_clauses) + " "
+        params: Tuple[Any, ...] = tuple(params_list)
 
         lim_sql, lim_params = _limit_clause(limit, offset)
         sql = base_sql + where + order + lim_sql

@@ -114,6 +114,59 @@
           <label>סוג</label>
           <select id="kind"><option value="">הכול</option><option value="verse">פסוקים</option><option value="word">מילים</option></select>
         </div>
+        <div>
+          <label>ספר</label>
+          <select id="book">
+            <option value="">כל הספרים</option>
+            <optgroup label="תורה">
+              <option value="Genesis">בראשית</option>
+              <option value="Exodus">שמות</option>
+              <option value="Leviticus">ויקרא</option>
+              <option value="Numbers">במדבר</option>
+              <option value="Deuteronomy">דברים</option>
+            </optgroup>
+            <optgroup label="נביאים ראשונים">
+              <option value="Joshua">יהושע</option>
+              <option value="Judges">שופטים</option>
+              <option value="1 Samuel">שמואל א</option>
+              <option value="2 Samuel">שמואל ב</option>
+              <option value="1 Kings">מלכים א</option>
+              <option value="2 Kings">מלכים ב</option>
+            </optgroup>
+            <optgroup label="נביאים אחרונים">
+              <option value="Isaiah">ישעיהו</option>
+              <option value="Jeremiah">ירמיהו</option>
+              <option value="Ezekiel">יחזקאל</option>
+              <option value="Hosea">הושע</option>
+              <option value="Joel">יואל</option>
+              <option value="Amos">עמוס</option>
+              <option value="Obadiah">עובדיה</option>
+              <option value="Jonah">יונה</option>
+              <option value="Micah">מיכה</option>
+              <option value="Nahum">נחום</option>
+              <option value="Habakkuk">חבקוק</option>
+              <option value="Zephaniah">צפניה</option>
+              <option value="Haggai">חגי</option>
+              <option value="Zechariah">זכריה</option>
+              <option value="Malachi">מלאכי</option>
+            </optgroup>
+            <optgroup label="כתובים">
+              <option value="Psalms">תהילים</option>
+              <option value="Proverbs">משלי</option>
+              <option value="Job">איוב</option>
+              <option value="Song of Songs">שיר השירים</option>
+              <option value="Ruth">רות</option>
+              <option value="Lamentations">איכה</option>
+              <option value="Ecclesiastes">קהלת</option>
+              <option value="Esther">אסתר</option>
+              <option value="Daniel">דניאל</option>
+              <option value="Ezra">עזרא</option>
+              <option value="Nehemiah">נחמיה</option>
+              <option value="1 Chronicles">דברי הימים א</option>
+              <option value="2 Chronicles">דברי הימים ב</option>
+            </optgroup>
+          </select>
+        </div>
         <div><label>&nbsp;</label><button id="btn">חפש</button></div>
       </div>
       <div id="calc" class="hint" style="display:none"></div>
@@ -193,6 +246,59 @@
           <label>מילה לחיפוש</label>
           <input id="wcWord" type="text" placeholder="שלום" style="width:180px">
         </div>
+        <div>
+          <label>ספר</label>
+          <select id="wcBook">
+            <option value="">כל הספרים</option>
+            <optgroup label="תורה">
+              <option value="Genesis">בראשית</option>
+              <option value="Exodus">שמות</option>
+              <option value="Leviticus">ויקרא</option>
+              <option value="Numbers">במדבר</option>
+              <option value="Deuteronomy">דברים</option>
+            </optgroup>
+            <optgroup label="נביאים ראשונים">
+              <option value="Joshua">יהושע</option>
+              <option value="Judges">שופטים</option>
+              <option value="1 Samuel">שמואל א</option>
+              <option value="2 Samuel">שמואל ב</option>
+              <option value="1 Kings">מלכים א</option>
+              <option value="2 Kings">מלכים ב</option>
+            </optgroup>
+            <optgroup label="נביאים אחרונים">
+              <option value="Isaiah">ישעיהו</option>
+              <option value="Jeremiah">ירמיהו</option>
+              <option value="Ezekiel">יחזקאל</option>
+              <option value="Hosea">הושע</option>
+              <option value="Joel">יואל</option>
+              <option value="Amos">עמוס</option>
+              <option value="Obadiah">עובדיה</option>
+              <option value="Jonah">יונה</option>
+              <option value="Micah">מיכה</option>
+              <option value="Nahum">נחום</option>
+              <option value="Habakkuk">חבקוק</option>
+              <option value="Zephaniah">צפניה</option>
+              <option value="Haggai">חגי</option>
+              <option value="Zechariah">זכריה</option>
+              <option value="Malachi">מלאכי</option>
+            </optgroup>
+            <optgroup label="כתובים">
+              <option value="Psalms">תהילים</option>
+              <option value="Proverbs">משלי</option>
+              <option value="Job">איוב</option>
+              <option value="Song of Songs">שיר השירים</option>
+              <option value="Ruth">רות</option>
+              <option value="Lamentations">איכה</option>
+              <option value="Ecclesiastes">קהלת</option>
+              <option value="Esther">אסתר</option>
+              <option value="Daniel">דניאל</option>
+              <option value="Ezra">עזרא</option>
+              <option value="Nehemiah">נחמיה</option>
+              <option value="1 Chronicles">דברי הימים א</option>
+              <option value="2 Chronicles">דברי הימים ב</option>
+            </optgroup>
+          </select>
+        </div>
         <div><label>&nbsp;</label><button id="wcBtn">חפש</button></div>
       </div>
       <div id="wcErr" class="error" style="display:none"></div>
@@ -221,6 +327,59 @@
             <option value="2">אות שלישית</option>
           </select>
         </div>
+        <div>
+          <label>ספר</label>
+          <select id="rtBook">
+            <option value="">כל הספרים</option>
+            <optgroup label="תורה">
+              <option value="Genesis">בראשית</option>
+              <option value="Exodus">שמות</option>
+              <option value="Leviticus">ויקרא</option>
+              <option value="Numbers">במדבר</option>
+              <option value="Deuteronomy">דברים</option>
+            </optgroup>
+            <optgroup label="נביאים ראשונים">
+              <option value="Joshua">יהושע</option>
+              <option value="Judges">שופטים</option>
+              <option value="1 Samuel">שמואל א</option>
+              <option value="2 Samuel">שמואל ב</option>
+              <option value="1 Kings">מלכים א</option>
+              <option value="2 Kings">מלכים ב</option>
+            </optgroup>
+            <optgroup label="נביאים אחרונים">
+              <option value="Isaiah">ישעיהו</option>
+              <option value="Jeremiah">ירמיהו</option>
+              <option value="Ezekiel">יחזקאל</option>
+              <option value="Hosea">הושע</option>
+              <option value="Joel">יואל</option>
+              <option value="Amos">עמוס</option>
+              <option value="Obadiah">עובדיה</option>
+              <option value="Jonah">יונה</option>
+              <option value="Micah">מיכה</option>
+              <option value="Nahum">נחום</option>
+              <option value="Habakkuk">חבקוק</option>
+              <option value="Zephaniah">צפניה</option>
+              <option value="Haggai">חגי</option>
+              <option value="Zechariah">זכריה</option>
+              <option value="Malachi">מלאכי</option>
+            </optgroup>
+            <optgroup label="כתובים">
+              <option value="Psalms">תהילים</option>
+              <option value="Proverbs">משלי</option>
+              <option value="Job">איוב</option>
+              <option value="Song of Songs">שיר השירים</option>
+              <option value="Ruth">רות</option>
+              <option value="Lamentations">איכה</option>
+              <option value="Ecclesiastes">קהלת</option>
+              <option value="Esther">אסתר</option>
+              <option value="Daniel">דניאל</option>
+              <option value="Ezra">עזרא</option>
+              <option value="Nehemiah">נחמיה</option>
+              <option value="1 Chronicles">דברי הימים א</option>
+              <option value="2 Chronicles">דברי הימים ב</option>
+            </optgroup>
+          </select>
+        </div>
         <div><label>&nbsp;</label><button id="rtBtn">חפש</button></div>
       </div>
       <div id="rtErr" class="error" style="display:none"></div>
@@ -241,8 +400,65 @@
           <input id="elsWord" type="text" placeholder="תורה" style="width:120px" maxlength="10">
         </div>
         <div>
+          <label>דילוג מינימלי</label>
+          <input id="elsMin" type="number" value="1" min="1" style="width:80px">
+        </div>
+        <div>
           <label>דילוג מקסימלי</label>
           <input id="elsMax" type="number" value="100" min="1" style="width:80px">
+        </div>
+        <div>
+          <label>ספר</label>
+          <select id="elsBook">
+            <option value="">כל הספרים</option>
+            <optgroup label="תורה">
+              <option value="Genesis">בראשית</option>
+              <option value="Exodus">שמות</option>
+              <option value="Leviticus">ויקרא</option>
+              <option value="Numbers">במדבר</option>
+              <option value="Deuteronomy">דברים</option>
+            </optgroup>
+            <optgroup label="נביאים ראשונים">
+              <option value="Joshua">יהושע</option>
+              <option value="Judges">שופטים</option>
+              <option value="1 Samuel">שמואל א</option>
+              <option value="2 Samuel">שמואל ב</option>
+              <option value="1 Kings">מלכים א</option>
+              <option value="2 Kings">מלכים ב</option>
+            </optgroup>
+            <optgroup label="נביאים אחרונים">
+              <option value="Isaiah">ישעיהו</option>
+              <option value="Jeremiah">ירמיהו</option>
+              <option value="Ezekiel">יחזקאל</option>
+              <option value="Hosea">הושע</option>
+              <option value="Joel">יואל</option>
+              <option value="Amos">עמוס</option>
+              <option value="Obadiah">עובדיה</option>
+              <option value="Jonah">יונה</option>
+              <option value="Micah">מיכה</option>
+              <option value="Nahum">נחום</option>
+              <option value="Habakkuk">חבקוק</option>
+              <option value="Zephaniah">צפניה</option>
+              <option value="Haggai">חגי</option>
+              <option value="Zechariah">זכריה</option>
+              <option value="Malachi">מלאכי</option>
+            </optgroup>
+            <optgroup label="כתובים">
+              <option value="Psalms">תהילים</option>
+              <option value="Proverbs">משלי</option>
+              <option value="Job">איוב</option>
+              <option value="Song of Songs">שיר השירים</option>
+              <option value="Ruth">רות</option>
+              <option value="Lamentations">איכה</option>
+              <option value="Ecclesiastes">קהלת</option>
+              <option value="Esther">אסתר</option>
+              <option value="Daniel">דניאל</option>
+              <option value="Ezra">עזרא</option>
+              <option value="Nehemiah">נחמיה</option>
+              <option value="1 Chronicles">דברי הימים א</option>
+              <option value="2 Chronicles">דברי הימים ב</option>
+            </optgroup>
+          </select>
         </div>
         <div><label>&nbsp;</label><button id="elsBtn">חפש</button></div>
       </div>
@@ -280,9 +496,10 @@ function syncMode(){
 $("mode").onchange=syncMode;
 
 async function doSearch(){
-  const mode=$("mode").value,kind=$("kind").value;
+  const mode=$("mode").value,kind=$("kind").value,book=$("book").value;
   const params=new URLSearchParams();
   if(kind)params.set("kind",kind);
+  if(book)params.set("book",book);
   params.set("limit","500");
 
   if(mode==="number"){
@@ -504,12 +721,15 @@ document.onkeydown=e=>{if(e.key==='Escape')closeModal();};
 // Word Count Search
 async function doWordSearch(){
   const word=$('wcWord').value.trim();
+  const book=$('wcBook').value;
   if(!word){$('wcErr').textContent='הזן מילה';$('wcErr').style.display='block';return;}
 
   $('wcBtn').disabled=true;$('wcStatus').textContent='מחפש...';$('wcResults').innerHTML='';$('wcErr').style.display='none';$('wcStats').style.display='none';
 
   try{
-    const data=await(await fetch('/word-search?word='+encodeURIComponent(word))).json();
+    const params=new URLSearchParams({word});
+    if(book)params.set('book',book);
+    const data=await(await fetch('/word-search?'+params)).json();
 
     $('wcStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>מופעים בתנ״ך</span></div>
@@ -545,10 +765,13 @@ async function doRosheiSearch(){
   if(!word){$('rtErr').textContent='הזן מילה';$('rtErr').style.display='block';return;}
 
   const mode=$('rtMode').value;
+  const book=$('rtBook').value;
   $('rtBtn').disabled=true;$('rtStatus').textContent='מחפש...';$('rtResults').innerHTML='';$('rtErr').style.display='none';$('rtStats').style.display='none';
 
   try{
-    const data=await(await fetch(`/roshei-tevot?word=${encodeURIComponent(word)}&mode=${mode}`)).json();
+    const params=new URLSearchParams({word,mode});
+    if(book)params.set('book',book);
+    const data=await(await fetch(`/roshei-tevot?${params}`)).json();
 
     $('rtStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div>
@@ -597,26 +820,40 @@ async function doElsSearch(){
   const word=$('elsWord').value.trim();
   if(!word||word.length<2){$('elsErr').textContent='הזן לפחות 2 אותיות';$('elsErr').style.display='block';return;}
 
+  const minSkip=parseInt($('elsMin').value)||1;
   const maxSkip=parseInt($('elsMax').value)||100;
+  const book=$('elsBook').value;
+
+  if(minSkip>maxSkip){$('elsErr').textContent='דילוג מינימלי חייב להיות קטן או שווה לדילוג מקסימלי';$('elsErr').style.display='block';return;}
   if(maxSkip>500&&!confirm('דילוג מעל 500 עלול לקחת זמן רב. להמשיך?'))return;
 
   $('elsBtn').disabled=true;$('elsStatus').textContent='מחפש... (עשוי לקחת זמן)';$('elsResults').innerHTML='';$('elsErr').style.display='none';$('elsStats').style.display='none';
 
   try{
-    const data=await(await fetch(`/els?word=${encodeURIComponent(word)}&max_skip=${maxSkip}`)).json();
+    const params=new URLSearchParams({word,min_skip:minSkip,max_skip:maxSkip});
+    if(book)params.set('book',book);
+    const resp=await fetch(`/els?${params}`);
+    const data=await resp.json();
+
+    // Check for API error
+    if(data.detail){
+      $('elsErr').textContent=data.detail;$('elsErr').style.display='block';
+      $('elsBtn').disabled=false;
+      return;
+    }
 
     $('elsStats').innerHTML=`
-      <div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div>
-      <div class="stat"><b>${data.search_word}</b><span>מילה</span></div>
+      <div class="stat"><b>${(data.count||0).toLocaleString()}</b><span>תוצאות</span></div>
+      <div class="stat"><b>${data.search_word||''}</b><span>מילה</span></div>
     `;
     $('elsStats').style.display='flex';
 
-    if(data.count===0){
+    if(!data.count||data.count===0){
       $('elsStatus').textContent='לא נמצאו תוצאות';
     }else{
       $('elsStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
       $('elsResults').innerHTML=data.matches.map((m,idx)=>{
-        const highlighted=highlightElsText(m.full_text,m.letter_positions);
+        const highlighted=highlightElsText(m.full_text||'',m.letter_positions||[]);
         return `<div class="hit">
           <div>
             <span class="ref">${m.ref_start}</span>
@@ -630,7 +867,8 @@ async function doElsSearch(){
       }).join('');
     }
   }catch(e){
-    $('elsErr').textContent=e.message||'שגיאה';$('elsErr').style.display='block';
+    console.error('ELS error:',e);
+    $('elsErr').textContent=e.message||'שגיאה בחיפוש';$('elsErr').style.display='block';
   }
   $('elsBtn').disabled=false;
 }

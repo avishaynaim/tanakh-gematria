@@ -1,4 +1,6 @@
+import gdown
 import os
+
 from pathlib import Path
 
 MIN_BYTES = 50_000_000  # 50MB
@@ -33,7 +35,7 @@ def ensure_db() -> Path:
 
     print(f"[bootstrap_db] Downloading DB from Google Drive id={gdrive_id} ...", flush=True)
 
-    import gdown
+
     tmp = db_path.with_suffix(db_path.suffix + ".tmp")
     if tmp.exists():
         tmp.unlink()

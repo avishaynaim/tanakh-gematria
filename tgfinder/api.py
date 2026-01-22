@@ -58,6 +58,7 @@ def api_search(
     text: Optional[str] = Query(None, description="טקסט בעברית: יחושב גימטריה ואז יחפש"),
     kind: Optional[Literal["verse","word","gram"]] = None,
     n: Optional[int] = Query(None, ge=1, le=10),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
     # ברירת מחדל: להחזיר הכול (ללא LIMIT). אפשר להעביר limit=50 וכו'
     limit: Optional[int] = Query(None, ge=1, le=200000),
     offset: int = Query(0, ge=0),
@@ -71,7 +72,7 @@ def api_search(
             raise HTTPException(status_code=400, detail="נא לספק value או text")
         value = gematria(text)
 
-    hits = search(db_path=db, value=value, kind=kind, n=n, limit=limit, offset=offset)
+    hits = search(db_path=db, value=value, kind=kind, n=n, limit=limit, offset=offset, book=book)
     return [HitOut(**h.__dict__) for h in hits]
 
 
@@ -289,6 +290,7 @@ def normalize_sofit(text: str) -> str:
 @app.get("/word-search", response_model=WordSearchResult)
 def api_word_search(
     word: str = Query(..., min_length=1, description="מילה לחיפוש"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -313,16 +315,26 @@ def api_word_search(
 
     # Search using normalized comparison (handles sofit letters)
     # Use SQLite REPLACE to normalize sofit letters in the query
+    where_clauses = [
+        "g.n = 1",
+        "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(g.clean_text, 'ך', 'כ'), 'ם', 'מ'), 'ן', 'נ'), 'ף', 'פ'), 'ץ', 'צ') = ?"
+    ]
+    params_list = [normalized_word]
+
+    if book:
+        where_clauses.append("g.book = ?")
+        params_list.append(book)
+
+    where_sql = " AND ".join(where_clauses)
     sql = f"""
         SELECT g.text, g.clean_text, g.book, g.chapter, g.verse, g.start_word, v.text as verse_text
         FROM grams g
         JOIN verses v ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse
-        WHERE g.n = 1 AND
-            REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(g.clean_text, 'ך', 'כ'), 'ם', 'מ'), 'ן', 'נ'), 'ף', 'פ'), 'ץ', 'צ') = ?
+        WHERE {where_sql}
         ORDER BY {_GBOOK_ORDER}, g.chapter, g.verse, g.start_word
     """
 
-    cur = conn.execute(sql, (normalized_word,))
+    cur = conn.execute(sql, tuple(params_list))
     rows = cur.fetchall()
     conn.close()
 
@@ -362,6 +374,7 @@ class RosheiTevotResult(BaseModel):
 def api_roshei_tevot(
     word: str = Query(..., min_length=1, description="מילה לחיפוש"),
     mode: str = Query("first", description="first=ראשי תיבות, last=סופי תיבות, או מספר לאופסט"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -391,9 +404,16 @@ def api_roshei_tevot(
             offset = 0
 
     # Get all verses ordered by book
-    sql = """
+    where_clause = ""
+    params_list = []
+    if book:
+        where_clause = "WHERE book = ?"
+        params_list.append(book)
+
+    sql = f"""
         SELECT book, chapter, verse, text, clean_text
         FROM verses
+        {where_clause}
         ORDER BY
             CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
             WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
@@ -411,7 +431,7 @@ def api_roshei_tevot(
             ELSE 999 END, chapter, verse
     """
 
-    cur = conn.execute(sql)
+    cur = conn.execute(sql, tuple(params_list))
     matches = []
 
     for row in cur:
@@ -495,6 +515,8 @@ class ELSResult(BaseModel):
 def api_els(
     word: str = Query(..., min_length=2, max_length=10, description="מילה לחיפוש (2-10 אותיות)"),
     max_skip: int = Query(1000, ge=1, description="דילוג מקסימלי"),
+    min_skip: int = Query(1, ge=1, description="דילוג מינימלי"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -505,6 +527,9 @@ def api_els(
 
     db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
 
+    if min_skip > max_skip:
+        raise HTTPException(status_code=400, detail="דילוג מינימלי חייב להיות קטן או שווה לדילוג מקסימלי")
+
     # Clean search word
     clean_word = re.sub(r'[^\u05d0-\u05ea]', '', word)
     if len(clean_word) < 2:
@@ -512,12 +537,20 @@ def api_els(
 
     normalized_search = normalize_sofit(clean_word)
 
-    # Build continuous text if not cached
-    if _els_clean_cache is None:
+    # Build continuous text if not cached or if book filter is specified
+    # When book filter is used, we don't use cache and build text on-the-fly
+    if book or _els_clean_cache is None:
         conn = connect(db_path)
-        sql = """
+        where_clause = ""
+        params_list = []
+        if book:
+            where_clause = "WHERE book = ?"
+            params_list.append(book)
+
+        sql = f"""
             SELECT book, chapter, verse, text, clean_text
             FROM verses
+            {where_clause}
             ORDER BY
                 CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
                 WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
@@ -534,7 +567,7 @@ def api_els(
                 WHEN book='Nehemiah' THEN 37 WHEN book='1 Chronicles' THEN 38 WHEN book='2 Chronicles' THEN 39
                 ELSE 999 END, chapter, verse
         """
-        cur = conn.execute(sql)
+        cur = conn.execute(sql, tuple(params_list))
 
         clean_chars = []
         full_chars = []
@@ -569,16 +602,25 @@ def api_els(
                 clean_chars.append(clean_char)
                 full_idx += 1
 
-        _els_clean_cache = "".join(clean_chars)
-        _els_full_cache = "".join(full_chars)
-        _els_positions_cache = positions
-        _els_clean_to_full_map = clean_to_full
+        # Only cache if we're not filtering by book
+        if not book:
+            _els_clean_cache = "".join(clean_chars)
+            _els_full_cache = "".join(full_chars)
+            _els_positions_cache = positions
+            _els_clean_to_full_map = clean_to_full
+
         conn.close()
 
-    clean_text = _els_clean_cache
-    full_text = _els_full_cache
-    positions = _els_positions_cache
-    clean_to_full = _els_clean_to_full_map
+        # Use the just-built data
+        clean_text = "".join(clean_chars)
+        full_text = "".join(full_chars)
+        clean_to_full = clean_to_full
+    else:
+        # Use cached data
+        clean_text = _els_clean_cache
+        full_text = _els_full_cache
+        positions = _els_positions_cache
+        clean_to_full = _els_clean_to_full_map
     text_normalized = normalize_sofit(clean_text)
     text_len = len(clean_text)
     word_len = len(normalized_search)
@@ -586,7 +628,7 @@ def api_els(
     matches = []
 
     # Search with different skip values
-    for skip in range(1, min(max_skip + 1, text_len)):
+    for skip in range(min_skip, min(max_skip + 1, text_len)):
         max_start = text_len - (word_len - 1) * skip - 1
         if max_start < 0:
             break
