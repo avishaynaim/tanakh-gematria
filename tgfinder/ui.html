@@ -89,6 +89,7 @@
     .book-select-item{padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px}
     .book-select-item:hover{background:#f3f4f6}
     .book-select-item input[type="checkbox"]{margin:0;cursor:pointer}
+    .book-select-item label{cursor:pointer;flex:1;margin:0}
     .book-select-item.all{font-weight:700;border-bottom:1px solid #e5e7eb;background:#f9fafb}
     .book-select-item.group{font-weight:600;background:#eef2ff;color:#3730a3;padding-right:12px}
     .book-select-item.book{padding-right:24px}
@@ -358,8 +359,11 @@ const BOOK_GROUPS={
 
 // Create multi-select book selector
 function createBookSelector(id){
-  const container=$('#'+id);
-  if(!container)return;
+  const container=document.getElementById(id);
+  if(!container){
+    console.error('Container not found:',id);
+    return null;
+  }
 
   const state={selected:new Set()};
 
@@ -374,20 +378,46 @@ function createBookSelector(id){
   // "All" checkbox
   const allItem=document.createElement('div');
   allItem.className='book-select-item all';
-  allItem.innerHTML='<input type="checkbox" id="'+id+'-all" checked><label for="'+id+'-all">כל הספרים</label>';
+  const allCheckbox=document.createElement('input');
+  allCheckbox.type='checkbox';
+  allCheckbox.id=id+'-all';
+  allCheckbox.checked=true;
+  const allLabel=document.createElement('label');
+  allLabel.htmlFor=id+'-all';
+  allLabel.textContent='כל הספרים';
+  allItem.appendChild(allCheckbox);
+  allItem.appendChild(allLabel);
   dropdown.appendChild(allItem);
 
   // Group and book checkboxes
   Object.entries(BOOK_GROUPS).forEach(([groupName,books])=>{
     const groupItem=document.createElement('div');
     groupItem.className='book-select-item group';
-    groupItem.innerHTML=`<input type="checkbox" id="${id}-group-${groupName}" checked><label for="${id}-group-${groupName}">${groupName}</label>`;
+    const groupCheckbox=document.createElement('input');
+    groupCheckbox.type='checkbox';
+    groupCheckbox.id=`${id}-group-${groupName}`;
+    groupCheckbox.checked=true;
+    const groupLabel=document.createElement('label');
+    groupLabel.htmlFor=`${id}-group-${groupName}`;
+    groupLabel.textContent=groupName;
+    groupItem.appendChild(groupCheckbox);
+    groupItem.appendChild(groupLabel);
     dropdown.appendChild(groupItem);
 
     books.forEach(book=>{
       const bookItem=document.createElement('div');
       bookItem.className='book-select-item book';
-      bookItem.innerHTML=`<input type="checkbox" id="${id}-book-${book.value}" checked data-group="${groupName}" value="${book.value}"><label for="${id}-book-${book.value}">${book.label}</label>`;
+      const bookCheckbox=document.createElement('input');
+      bookCheckbox.type='checkbox';
+      bookCheckbox.id=`${id}-book-${book.value}`;
+      bookCheckbox.checked=true;
+      bookCheckbox.dataset.group=groupName;
+      bookCheckbox.value=book.value;
+      const bookLabel=document.createElement('label');
+      bookLabel.htmlFor=`${id}-book-${book.value}`;
+      bookLabel.textContent=book.label;
+      bookItem.appendChild(bookCheckbox);
+      bookItem.appendChild(bookLabel);
       dropdown.appendChild(bookItem);
     });
   });
@@ -498,7 +528,7 @@ $("mode").onchange=syncMode;
 
 async function doSearch(){
   const mode=$("mode").value,kind=$("kind").value;
-  const selectedBooks=bookSelector.getSelected();
+  const selectedBooks=bookSelector?bookSelector.getSelected():[];
   const params=new URLSearchParams();
   if(kind)params.set("kind",kind);
   selectedBooks.forEach(b=>params.append("books",b));
@@ -723,7 +753,7 @@ document.onkeydown=e=>{if(e.key==='Escape')closeModal();};
 // Word Count Search
 async function doWordSearch(){
   const word=$('wcWord').value.trim();
-  const selectedBooks=wcBookSelector.getSelected();
+  const selectedBooks=wcBookSelector?wcBookSelector.getSelected():[];
   if(!word){$('wcErr').textContent='הזן מילה';$('wcErr').style.display='block';return;}
 
   $('wcBtn').disabled=true;$('wcStatus').textContent='מחפש...';$('wcResults').innerHTML='';$('wcErr').style.display='none';$('wcStats').style.display='none';
@@ -767,7 +797,7 @@ async function doRosheiSearch(){
   if(!word){$('rtErr').textContent='הזן מילה';$('rtErr').style.display='block';return;}
 
   const mode=$('rtMode').value;
-  const selectedBooks=rtBookSelector.getSelected();
+  const selectedBooks=rtBookSelector?rtBookSelector.getSelected():[];
   $('rtBtn').disabled=true;$('rtStatus').textContent='מחפש...';$('rtResults').innerHTML='';$('rtErr').style.display='none';$('rtStats').style.display='none';
 
   try{
@@ -824,7 +854,7 @@ async function doElsSearch(){
 
   const minSkip=parseInt($('elsMin').value)||1;
   const maxSkip=parseInt($('elsMax').value)||100;
-  const selectedBooks=elsBookSelector.getSelected();
+  const selectedBooks=elsBookSelector?elsBookSelector.getSelected():[];
 
   if(minSkip>maxSkip){$('elsErr').textContent='דילוג מינימלי חייב להיות קטן או שווה לדילוג מקסימלי';$('elsErr').style.display='block';return;}
   if(maxSkip>500&&!confirm('דילוג מעל 500 עלול לקחת זמן רב. להמשיך?'))return;
@@ -877,13 +907,22 @@ async function doElsSearch(){
 $('elsBtn').onclick=doElsSearch;
 $('elsWord').onkeydown=e=>{if(e.key==='Enter')doElsSearch();};
 
-// Initialize book selectors
-document.addEventListener('DOMContentLoaded',()=>{
+// Initialize book selectors immediately
+function initBookSelectors(){
+  console.log('Initializing book selectors...');
   bookSelector=createBookSelector('bookSelect');
   wcBookSelector=createBookSelector('wcBookSelect');
   rtBookSelector=createBookSelector('rtBookSelect');
   elsBookSelector=createBookSelector('elsBookSelect');
-});
+  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector});
+}
+
+// Try to initialize immediately if DOM is ready
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initBookSelectors);
+}else{
+  initBookSelectors();
+}
 </script>
 </body>
 </html>
