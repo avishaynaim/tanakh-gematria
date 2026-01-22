@@ -435,7 +435,7 @@ async function doWordSearch(){
   $('wcBtn').disabled=true;$('wcStatus').textContent='מחפש...';$('wcResults').innerHTML='';$('wcErr').style.display='none';$('wcStats').style.display='none';
 
   try{
-    const data=await(await fetch('/word-search?word='+encodeURIComponent(word)+'&limit=500')).json();
+    const data=await(await fetch('/word-search?word='+encodeURIComponent(word))).json();
 
     $('wcStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>מופעים בתנ״ך</span></div>
@@ -446,14 +446,13 @@ async function doWordSearch(){
     if(data.count===0){
       $('wcStatus').textContent='לא נמצאו תוצאות';
     }else{
-      const showing=Math.min(data.locations.length,data.count);
-      $('wcStatus').textContent=`מציג ${showing} מתוך ${data.count} מופעים`;
+      $('wcStatus').textContent=`נמצאו ${data.count.toLocaleString()} מופעים`;
       $('wcResults').innerHTML=data.locations.map(loc=>{
-        // Highlight the word in verse text
-        const verseWords=loc.verse_text.split(/\s+/);
-        const highlighted=verseWords.map((w,i)=>i===loc.word_index-1?`<mark>${w}</mark>`:w).join(' ');
+        // Highlight the actual word in verse text using word_text
+        const escaped=loc.word_text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        const highlighted=loc.verse_text.replace(new RegExp(`(${escaped})`,'g'),'<mark>$1</mark>');
         return `<div class="hit">
-          <div><span class="ref">${loc.ref}</span><span class="pill">מילה ${loc.word_index}</span></div>
+          <div><span class="ref">${loc.ref}</span><span class="pill">${loc.word_text}</span></div>
           <div class="text">${highlighted}</div>
         </div>`;
       }).join('');

@@ -191,6 +191,7 @@ class WordLocation(BaseModel):
     verse: int
     word_index: int
     verse_text: str
+    word_text: str  # The actual word from the text
 
 class WordSearchResult(BaseModel):
     word: str
@@ -281,15 +282,19 @@ def api_histogram_words(
     return result
 
 
+def normalize_sofit(text: str) -> str:
+    """Normalize final letters (sofit) to regular letters for matching."""
+    return text.translate(str.maketrans('ךםןףץ', 'כמנפצ'))
+
 @app.get("/word-search", response_model=WordSearchResult)
 def api_word_search(
     word: str = Query(..., min_length=1, description="מילה לחיפוש"),
-    limit: int = Query(500, ge=1, le=10000, description="מספר תוצאות מקסימלי"),
     db: str = Query(default=None),
 ):
     """
     Search for a word in the Tanakh and return count + locations.
     Searches in clean_text (without nikud/teamim) for better matching.
+    Also normalizes final letters (sofit) for matching.
     """
     db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
     conn = connect(db_path)
@@ -300,25 +305,25 @@ def api_word_search(
     if not clean_word:
         raise HTTPException(status_code=400, detail="נא להזין מילה בעברית")
 
+    # Normalize final letters (sofit) to regular letters
+    normalized_word = normalize_sofit(clean_word)
+
     # Book order case for grams table
     _GBOOK_ORDER = """CASE WHEN g.book='Genesis' THEN 1 WHEN g.book='Exodus' THEN 2 WHEN g.book='Leviticus' THEN 3 WHEN g.book='Numbers' THEN 4 WHEN g.book='Deuteronomy' THEN 5 WHEN g.book='Joshua' THEN 6 WHEN g.book='Judges' THEN 7 WHEN g.book='1 Samuel' THEN 8 WHEN g.book='2 Samuel' THEN 9 WHEN g.book='1 Kings' THEN 10 WHEN g.book='2 Kings' THEN 11 WHEN g.book='Isaiah' THEN 12 WHEN g.book='Jeremiah' THEN 13 WHEN g.book='Ezekiel' THEN 14 WHEN g.book='Hosea' THEN 15 WHEN g.book='Joel' THEN 16 WHEN g.book='Amos' THEN 17 WHEN g.book='Obadiah' THEN 18 WHEN g.book='Jonah' THEN 19 WHEN g.book='Micah' THEN 20 WHEN g.book='Nahum' THEN 21 WHEN g.book='Habakkuk' THEN 22 WHEN g.book='Zephaniah' THEN 23 WHEN g.book='Haggai' THEN 24 WHEN g.book='Zechariah' THEN 25 WHEN g.book='Malachi' THEN 26 WHEN g.book='Psalms' THEN 27 WHEN g.book='Proverbs' THEN 28 WHEN g.book='Job' THEN 29 WHEN g.book='Song of Songs' THEN 30 WHEN g.book='Ruth' THEN 31 WHEN g.book='Lamentations' THEN 32 WHEN g.book='Ecclesiastes' THEN 33 WHEN g.book='Esther' THEN 34 WHEN g.book='Daniel' THEN 35 WHEN g.book='Ezra' THEN 36 WHEN g.book='Nehemiah' THEN 37 WHEN g.book='1 Chronicles' THEN 38 WHEN g.book='2 Chronicles' THEN 39 ELSE 999 END"""
 
+    # Search using normalized comparison (handles sofit letters)
+    # Use SQLite REPLACE to normalize sofit letters in the query
     sql = f"""
         SELECT g.text, g.clean_text, g.book, g.chapter, g.verse, g.start_word, v.text as verse_text
         FROM grams g
         JOIN verses v ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse
-        WHERE g.n = 1 AND g.clean_text = ?
+        WHERE g.n = 1 AND
+            REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(g.clean_text, 'ך', 'כ'), 'ם', 'מ'), 'ן', 'נ'), 'ף', 'פ'), 'ץ', 'צ') = ?
         ORDER BY {_GBOOK_ORDER}, g.chapter, g.verse, g.start_word
-        LIMIT ?
     """
 
-    cur = conn.execute(sql, (clean_word, limit))
+    cur = conn.execute(sql, (normalized_word,))
     rows = cur.fetchall()
-
-    # Get total count (without limit)
-    count_sql = "SELECT COUNT(*) as cnt FROM grams WHERE n = 1 AND clean_text = ?"
-    total = conn.execute(count_sql, (clean_word,)).fetchone()["cnt"]
-
     conn.close()
 
     locations = []
@@ -331,7 +336,8 @@ def api_word_search(
             chapter=r["chapter"],
             verse=r["verse"],
             word_index=r["start_word"],
-            verse_text=r["verse_text"]
+            verse_text=r["verse_text"],
+            word_text=r["text"]  # The actual word with nikud
         ))
 
-    return WordSearchResult(word=clean_word, count=total, locations=locations)
+    return WordSearchResult(word=clean_word, count=len(locations), locations=locations)
