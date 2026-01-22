@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Database files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.backup
+*_export.json
+*_source.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archives (keep compressed backups in repo if needed)
+# Uncomment to ignore:
+# *.zip
