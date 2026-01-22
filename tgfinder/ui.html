@@ -448,12 +448,13 @@ async function doWordSearch(){
     }else{
       $('wcStatus').textContent=`נמצאו ${data.count.toLocaleString()} מופעים`;
       $('wcResults').innerHTML=data.locations.map(loc=>{
-        // Highlight the actual word in verse text using word_text
-        const escaped=loc.word_text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-        const highlighted=loc.verse_text.replace(new RegExp(`(${escaped})`,'g'),'<mark>$1</mark>');
+        // Highlight word using index (split and rejoin)
+        const words=loc.verse_text.split(/\s+/);
+        const idx=loc.word_index-1; // word_index is 1-based
+        if(idx>=0 && idx<words.length) words[idx]=`<mark>${words[idx]}</mark>`;
         return `<div class="hit">
           <div><span class="ref">${loc.ref}</span><span class="pill">${loc.word_text}</span></div>
-          <div class="text">${highlighted}</div>
+          <div class="text">${words.join(' ')}</div>
         </div>`;
       }).join('');
     }
