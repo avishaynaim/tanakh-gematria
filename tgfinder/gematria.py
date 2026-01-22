@@ -22,10 +22,11 @@ _GEMATRIA: Dict[str, int] = {
 def normalize_hebrew(text: str) -> str:
     if not text:
         return ""
-    t = _HEBREW_MARKS_RE.sub("", text)
-    t = t.replace("־", " ")  # Hebrew maqaf
+    # Replace separators BEFORE removing marks (maqaf is in marks range!)
+    t = text.replace("־", " ")  # Hebrew maqaf (U+05BE)
     t = t.replace("-", " ")  # ASCII hyphen
-    t = t.replace("׃", " ")
+    t = t.replace("׃", " ")  # Hebrew sof pasuq
+    t = _HEBREW_MARKS_RE.sub("", t)  # Remove nikud and other marks
     t = _NON_HEBREW_LETTERS_RE.sub(" ", t)
     t = t.translate(_FINALS_MAP)
     t = " ".join(t.split())
