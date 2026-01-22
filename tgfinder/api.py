@@ -58,7 +58,8 @@ def api_search(
     text: Optional[str] = Query(None, description="טקסט בעברית: יחושב גימטריה ואז יחפש"),
     kind: Optional[Literal["verse","word","gram"]] = None,
     n: Optional[int] = Query(None, ge=1, le=10),
-    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     # ברירת מחדל: להחזיר הכול (ללא LIMIT). אפשר להעביר limit=50 וכו'
     limit: Optional[int] = Query(None, ge=1, le=200000),
     offset: int = Query(0, ge=0),
@@ -72,7 +73,7 @@ def api_search(
             raise HTTPException(status_code=400, detail="נא לספק value או text")
         value = gematria(text)
 
-    hits = search(db_path=db, value=value, kind=kind, n=n, limit=limit, offset=offset, book=book)
+    hits = search(db_path=db, value=value, kind=kind, n=n, limit=limit, offset=offset, book=book, books=books)
     return [HitOut(**h.__dict__) for h in hits]
 
 
@@ -290,7 +291,8 @@ def normalize_sofit(text: str) -> str:
 @app.get("/word-search", response_model=WordSearchResult)
 def api_word_search(
     word: str = Query(..., min_length=1, description="מילה לחיפוש"),
-    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -310,6 +312,9 @@ def api_word_search(
     # Normalize final letters (sofit) to regular letters
     normalized_word = normalize_sofit(clean_word)
 
+    # Handle book filtering (books takes precedence over book)
+    book_filter = books if books else ([book] if book else None)
+
     # Book order case for grams table
     _GBOOK_ORDER = """CASE WHEN g.book='Genesis' THEN 1 WHEN g.book='Exodus' THEN 2 WHEN g.book='Leviticus' THEN 3 WHEN g.book='Numbers' THEN 4 WHEN g.book='Deuteronomy' THEN 5 WHEN g.book='Joshua' THEN 6 WHEN g.book='Judges' THEN 7 WHEN g.book='1 Samuel' THEN 8 WHEN g.book='2 Samuel' THEN 9 WHEN g.book='1 Kings' THEN 10 WHEN g.book='2 Kings' THEN 11 WHEN g.book='Isaiah' THEN 12 WHEN g.book='Jeremiah' THEN 13 WHEN g.book='Ezekiel' THEN 14 WHEN g.book='Hosea' THEN 15 WHEN g.book='Joel' THEN 16 WHEN g.book='Amos' THEN 17 WHEN g.book='Obadiah' THEN 18 WHEN g.book='Jonah' THEN 19 WHEN g.book='Micah' THEN 20 WHEN g.book='Nahum' THEN 21 WHEN g.book='Habakkuk' THEN 22 WHEN g.book='Zephaniah' THEN 23 WHEN g.book='Haggai' THEN 24 WHEN g.book='Zechariah' THEN 25 WHEN g.book='Malachi' THEN 26 WHEN g.book='Psalms' THEN 27 WHEN g.book='Proverbs' THEN 28 WHEN g.book='Job' THEN 29 WHEN g.book='Song of Songs' THEN 30 WHEN g.book='Ruth' THEN 31 WHEN g.book='Lamentations' THEN 32 WHEN g.book='Ecclesiastes' THEN 33 WHEN g.book='Esther' THEN 34 WHEN g.book='Daniel' THEN 35 WHEN g.book='Ezra' THEN 36 WHEN g.book='Nehemiah' THEN 37 WHEN g.book='1 Chronicles' THEN 38 WHEN g.book='2 Chronicles' THEN 39 ELSE 999 END"""
 
@@ -321,9 +326,10 @@ def api_word_search(
     ]
     params_list = [normalized_word]
 
-    if book:
-        where_clauses.append("g.book = ?")
-        params_list.append(book)
+    if book_filter:
+        placeholders = ",".join(["?"] * len(book_filter))
+        where_clauses.append(f"g.book IN ({placeholders})")
+        params_list.extend(book_filter)
 
     where_sql = " AND ".join(where_clauses)
     sql = f"""
@@ -374,7 +380,8 @@ class RosheiTevotResult(BaseModel):
 def api_roshei_tevot(
     word: str = Query(..., min_length=1, description="מילה לחיפוש"),
     mode: str = Query("first", description="first=ראשי תיבות, last=סופי תיבות, או מספר לאופסט"),
-    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -403,12 +410,16 @@ def api_roshei_tevot(
         except ValueError:
             offset = 0
 
+    # Handle book filtering (books takes precedence over book)
+    book_filter = books if books else ([book] if book else None)
+
     # Get all verses ordered by book
     where_clause = ""
     params_list = []
-    if book:
-        where_clause = "WHERE book = ?"
-        params_list.append(book)
+    if book_filter:
+        placeholders = ",".join(["?"] * len(book_filter))
+        where_clause = f"WHERE book IN ({placeholders})"
+        params_list.extend(book_filter)
 
     sql = f"""
         SELECT book, chapter, verse, text, clean_text
@@ -516,7 +527,8 @@ def api_els(
     word: str = Query(..., min_length=2, max_length=10, description="מילה לחיפוש (2-10 אותיות)"),
     max_skip: int = Query(1000, ge=1, description="דילוג מקסימלי"),
     min_skip: int = Query(1, ge=1, description="דילוג מינימלי"),
-    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
     """
@@ -537,15 +549,19 @@ def api_els(
 
     normalized_search = normalize_sofit(clean_word)
 
+    # Handle book filtering (books takes precedence over book)
+    book_filter = books if books else ([book] if book else None)
+
     # Build continuous text if not cached or if book filter is specified
     # When book filter is used, we don't use cache and build text on-the-fly
-    if book or _els_clean_cache is None:
+    if book_filter or _els_clean_cache is None:
         conn = connect(db_path)
         where_clause = ""
         params_list = []
-        if book:
-            where_clause = "WHERE book = ?"
-            params_list.append(book)
+        if book_filter:
+            placeholders = ",".join(["?"] * len(book_filter))
+            where_clause = f"WHERE book IN ({placeholders})"
+            params_list.extend(book_filter)
 
         sql = f"""
             SELECT book, chapter, verse, text, clean_text
@@ -603,7 +619,7 @@ def api_els(
                 full_idx += 1
 
         # Only cache if we're not filtering by book
-        if not book:
+        if not book_filter:
             _els_clean_cache = "".join(clean_chars)
             _els_full_cache = "".join(full_chars)
             _els_positions_cache = positions

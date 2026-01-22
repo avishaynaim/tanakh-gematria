@@ -80,6 +80,19 @@
     .expandable-content.open{display:block}
     .expand-btn{font-size:11px;color:#2563eb;margin-right:8px}
     .els-letter{background:#dc2626;color:#fff;padding:0 2px;border-radius:2px;font-weight:700}
+    /* Multi-select book dropdown */
+    .book-select{position:relative;width:200px}
+    .book-select-btn{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;text-align:right;cursor:pointer;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+    .book-select-btn:hover{background:#f9fafb}
+    .book-select-dropdown{display:none;position:absolute;top:100%;right:0;width:280px;max-height:400px;overflow-y:auto;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:100;margin-top:4px}
+    .book-select-dropdown.open{display:block}
+    .book-select-item{padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px}
+    .book-select-item:hover{background:#f3f4f6}
+    .book-select-item input[type="checkbox"]{margin:0;cursor:pointer}
+    .book-select-item.all{font-weight:700;border-bottom:1px solid #e5e7eb;background:#f9fafb}
+    .book-select-item.group{font-weight:600;background:#eef2ff;color:#3730a3;padding-right:12px}
+    .book-select-item.book{padding-right:24px}
+    .book-select-count{font-size:11px;color:#6b7280}
   </style>
 </head>
 <body>
@@ -115,57 +128,8 @@
           <select id="kind"><option value="">הכול</option><option value="verse">פסוקים</option><option value="word">מילים</option></select>
         </div>
         <div>
-          <label>ספר</label>
-          <select id="book">
-            <option value="">כל הספרים</option>
-            <optgroup label="תורה">
-              <option value="Genesis">בראשית</option>
-              <option value="Exodus">שמות</option>
-              <option value="Leviticus">ויקרא</option>
-              <option value="Numbers">במדבר</option>
-              <option value="Deuteronomy">דברים</option>
-            </optgroup>
-            <optgroup label="נביאים ראשונים">
-              <option value="Joshua">יהושע</option>
-              <option value="Judges">שופטים</option>
-              <option value="1 Samuel">שמואל א</option>
-              <option value="2 Samuel">שמואל ב</option>
-              <option value="1 Kings">מלכים א</option>
-              <option value="2 Kings">מלכים ב</option>
-            </optgroup>
-            <optgroup label="נביאים אחרונים">
-              <option value="Isaiah">ישעיהו</option>
-              <option value="Jeremiah">ירמיהו</option>
-              <option value="Ezekiel">יחזקאל</option>
-              <option value="Hosea">הושע</option>
-              <option value="Joel">יואל</option>
-              <option value="Amos">עמוס</option>
-              <option value="Obadiah">עובדיה</option>
-              <option value="Jonah">יונה</option>
-              <option value="Micah">מיכה</option>
-              <option value="Nahum">נחום</option>
-              <option value="Habakkuk">חבקוק</option>
-              <option value="Zephaniah">צפניה</option>
-              <option value="Haggai">חגי</option>
-              <option value="Zechariah">זכריה</option>
-              <option value="Malachi">מלאכי</option>
-            </optgroup>
-            <optgroup label="כתובים">
-              <option value="Psalms">תהילים</option>
-              <option value="Proverbs">משלי</option>
-              <option value="Job">איוב</option>
-              <option value="Song of Songs">שיר השירים</option>
-              <option value="Ruth">רות</option>
-              <option value="Lamentations">איכה</option>
-              <option value="Ecclesiastes">קהלת</option>
-              <option value="Esther">אסתר</option>
-              <option value="Daniel">דניאל</option>
-              <option value="Ezra">עזרא</option>
-              <option value="Nehemiah">נחמיה</option>
-              <option value="1 Chronicles">דברי הימים א</option>
-              <option value="2 Chronicles">דברי הימים ב</option>
-            </optgroup>
-          </select>
+          <label>ספרים</label>
+          <div id="bookSelect"></div>
         </div>
         <div><label>&nbsp;</label><button id="btn">חפש</button></div>
       </div>
@@ -247,57 +211,8 @@
           <input id="wcWord" type="text" placeholder="שלום" style="width:180px">
         </div>
         <div>
-          <label>ספר</label>
-          <select id="wcBook">
-            <option value="">כל הספרים</option>
-            <optgroup label="תורה">
-              <option value="Genesis">בראשית</option>
-              <option value="Exodus">שמות</option>
-              <option value="Leviticus">ויקרא</option>
-              <option value="Numbers">במדבר</option>
-              <option value="Deuteronomy">דברים</option>
-            </optgroup>
-            <optgroup label="נביאים ראשונים">
-              <option value="Joshua">יהושע</option>
-              <option value="Judges">שופטים</option>
-              <option value="1 Samuel">שמואל א</option>
-              <option value="2 Samuel">שמואל ב</option>
-              <option value="1 Kings">מלכים א</option>
-              <option value="2 Kings">מלכים ב</option>
-            </optgroup>
-            <optgroup label="נביאים אחרונים">
-              <option value="Isaiah">ישעיהו</option>
-              <option value="Jeremiah">ירמיהו</option>
-              <option value="Ezekiel">יחזקאל</option>
-              <option value="Hosea">הושע</option>
-              <option value="Joel">יואל</option>
-              <option value="Amos">עמוס</option>
-              <option value="Obadiah">עובדיה</option>
-              <option value="Jonah">יונה</option>
-              <option value="Micah">מיכה</option>
-              <option value="Nahum">נחום</option>
-              <option value="Habakkuk">חבקוק</option>
-              <option value="Zephaniah">צפניה</option>
-              <option value="Haggai">חגי</option>
-              <option value="Zechariah">זכריה</option>
-              <option value="Malachi">מלאכי</option>
-            </optgroup>
-            <optgroup label="כתובים">
-              <option value="Psalms">תהילים</option>
-              <option value="Proverbs">משלי</option>
-              <option value="Job">איוב</option>
-              <option value="Song of Songs">שיר השירים</option>
-              <option value="Ruth">רות</option>
-              <option value="Lamentations">איכה</option>
-              <option value="Ecclesiastes">קהלת</option>
-              <option value="Esther">אסתר</option>
-              <option value="Daniel">דניאל</option>
-              <option value="Ezra">עזרא</option>
-              <option value="Nehemiah">נחמיה</option>
-              <option value="1 Chronicles">דברי הימים א</option>
-              <option value="2 Chronicles">דברי הימים ב</option>
-            </optgroup>
-          </select>
+          <label>ספרים</label>
+          <div id="wcBookSelect"></div>
         </div>
         <div><label>&nbsp;</label><button id="wcBtn">חפש</button></div>
       </div>
@@ -328,57 +243,8 @@
           </select>
         </div>
         <div>
-          <label>ספר</label>
-          <select id="rtBook">
-            <option value="">כל הספרים</option>
-            <optgroup label="תורה">
-              <option value="Genesis">בראשית</option>
-              <option value="Exodus">שמות</option>
-              <option value="Leviticus">ויקרא</option>
-              <option value="Numbers">במדבר</option>
-              <option value="Deuteronomy">דברים</option>
-            </optgroup>
-            <optgroup label="נביאים ראשונים">
-              <option value="Joshua">יהושע</option>
-              <option value="Judges">שופטים</option>
-              <option value="1 Samuel">שמואל א</option>
-              <option value="2 Samuel">שמואל ב</option>
-              <option value="1 Kings">מלכים א</option>
-              <option value="2 Kings">מלכים ב</option>
-            </optgroup>
-            <optgroup label="נביאים אחרונים">
-              <option value="Isaiah">ישעיהו</option>
-              <option value="Jeremiah">ירמיהו</option>
-              <option value="Ezekiel">יחזקאל</option>
-              <option value="Hosea">הושע</option>
-              <option value="Joel">יואל</option>
-              <option value="Amos">עמוס</option>
-              <option value="Obadiah">עובדיה</option>
-              <option value="Jonah">יונה</option>
-              <option value="Micah">מיכה</option>
-              <option value="Nahum">נחום</option>
-              <option value="Habakkuk">חבקוק</option>
-              <option value="Zephaniah">צפניה</option>
-              <option value="Haggai">חגי</option>
-              <option value="Zechariah">זכריה</option>
-              <option value="Malachi">מלאכי</option>
-            </optgroup>
-            <optgroup label="כתובים">
-              <option value="Psalms">תהילים</option>
-              <option value="Proverbs">משלי</option>
-              <option value="Job">איוב</option>
-              <option value="Song of Songs">שיר השירים</option>
-              <option value="Ruth">רות</option>
-              <option value="Lamentations">איכה</option>
-              <option value="Ecclesiastes">קהלת</option>
-              <option value="Esther">אסתר</option>
-              <option value="Daniel">דניאל</option>
-              <option value="Ezra">עזרא</option>
-              <option value="Nehemiah">נחמיה</option>
-              <option value="1 Chronicles">דברי הימים א</option>
-              <option value="2 Chronicles">דברי הימים ב</option>
-            </optgroup>
-          </select>
+          <label>ספרים</label>
+          <div id="rtBookSelect"></div>
         </div>
         <div><label>&nbsp;</label><button id="rtBtn">חפש</button></div>
       </div>
@@ -408,57 +274,8 @@
           <input id="elsMax" type="number" value="100" min="1" style="width:80px">
         </div>
         <div>
-          <label>ספר</label>
-          <select id="elsBook">
-            <option value="">כל הספרים</option>
-            <optgroup label="תורה">
-              <option value="Genesis">בראשית</option>
-              <option value="Exodus">שמות</option>
-              <option value="Leviticus">ויקרא</option>
-              <option value="Numbers">במדבר</option>
-              <option value="Deuteronomy">דברים</option>
-            </optgroup>
-            <optgroup label="נביאים ראשונים">
-              <option value="Joshua">יהושע</option>
-              <option value="Judges">שופטים</option>
-              <option value="1 Samuel">שמואל א</option>
-              <option value="2 Samuel">שמואל ב</option>
-              <option value="1 Kings">מלכים א</option>
-              <option value="2 Kings">מלכים ב</option>
-            </optgroup>
-            <optgroup label="נביאים אחרונים">
-              <option value="Isaiah">ישעיהו</option>
-              <option value="Jeremiah">ירמיהו</option>
-              <option value="Ezekiel">יחזקאל</option>
-              <option value="Hosea">הושע</option>
-              <option value="Joel">יואל</option>
-              <option value="Amos">עמוס</option>
-              <option value="Obadiah">עובדיה</option>
-              <option value="Jonah">יונה</option>
-              <option value="Micah">מיכה</option>
-              <option value="Nahum">נחום</option>
-              <option value="Habakkuk">חבקוק</option>
-              <option value="Zephaniah">צפניה</option>
-              <option value="Haggai">חגי</option>
-              <option value="Zechariah">זכריה</option>
-              <option value="Malachi">מלאכי</option>
-            </optgroup>
-            <optgroup label="כתובים">
-              <option value="Psalms">תהילים</option>
-              <option value="Proverbs">משלי</option>
-              <option value="Job">איוב</option>
-              <option value="Song of Songs">שיר השירים</option>
-              <option value="Ruth">רות</option>
-              <option value="Lamentations">איכה</option>
-              <option value="Ecclesiastes">קהלת</option>
-              <option value="Esther">אסתר</option>
-              <option value="Daniel">דניאל</option>
-              <option value="Ezra">עזרא</option>
-              <option value="Nehemiah">נחמיה</option>
-              <option value="1 Chronicles">דברי הימים א</option>
-              <option value="2 Chronicles">דברי הימים ב</option>
-            </optgroup>
-          </select>
+          <label>ספרים</label>
+          <div id="elsBookSelect"></div>
         </div>
         <div><label>&nbsp;</label><button id="elsBtn">חפש</button></div>
       </div>
@@ -488,6 +305,190 @@
 const $=id=>document.getElementById(id);
 let vData=[],wData=[],vLoaded=false,wLoaded=false;
 
+// Book groups definition
+const BOOK_GROUPS={
+  'תורה':[
+    {value:'Genesis',label:'בראשית'},
+    {value:'Exodus',label:'שמות'},
+    {value:'Leviticus',label:'ויקרא'},
+    {value:'Numbers',label:'במדבר'},
+    {value:'Deuteronomy',label:'דברים'}
+  ],
+  'נביאים ראשונים':[
+    {value:'Joshua',label:'יהושע'},
+    {value:'Judges',label:'שופטים'},
+    {value:'1 Samuel',label:'שמואל א'},
+    {value:'2 Samuel',label:'שמואל ב'},
+    {value:'1 Kings',label:'מלכים א'},
+    {value:'2 Kings',label:'מלכים ב'}
+  ],
+  'נביאים אחרונים':[
+    {value:'Isaiah',label:'ישעיהו'},
+    {value:'Jeremiah',label:'ירמיהו'},
+    {value:'Ezekiel',label:'יחזקאל'},
+    {value:'Hosea',label:'הושע'},
+    {value:'Joel',label:'יואל'},
+    {value:'Amos',label:'עמוס'},
+    {value:'Obadiah',label:'עובדיה'},
+    {value:'Jonah',label:'יונה'},
+    {value:'Micah',label:'מיכה'},
+    {value:'Nahum',label:'נחום'},
+    {value:'Habakkuk',label:'חבקוק'},
+    {value:'Zephaniah',label:'צפניה'},
+    {value:'Haggai',label:'חגי'},
+    {value:'Zechariah',label:'זכריה'},
+    {value:'Malachi',label:'מלאכי'}
+  ],
+  'כתובים':[
+    {value:'Psalms',label:'תהילים'},
+    {value:'Proverbs',label:'משלי'},
+    {value:'Job',label:'איוב'},
+    {value:'Song of Songs',label:'שיר השירים'},
+    {value:'Ruth',label:'רות'},
+    {value:'Lamentations',label:'איכה'},
+    {value:'Ecclesiastes',label:'קהלת'},
+    {value:'Esther',label:'אסתר'},
+    {value:'Daniel',label:'דניאל'},
+    {value:'Ezra',label:'עזרא'},
+    {value:'Nehemiah',label:'נחמיה'},
+    {value:'1 Chronicles',label:'דברי הימים א'},
+    {value:'2 Chronicles',label:'דברי הימים ב'}
+  ]
+};
+
+// Create multi-select book selector
+function createBookSelector(id){
+  const container=$('#'+id);
+  if(!container)return;
+
+  const state={selected:new Set()};
+
+  const btn=document.createElement('button');
+  btn.type='button';
+  btn.className='book-select-btn';
+  btn.innerHTML='<span>כל הספרים</span><span>▼</span>';
+
+  const dropdown=document.createElement('div');
+  dropdown.className='book-select-dropdown';
+
+  // "All" checkbox
+  const allItem=document.createElement('div');
+  allItem.className='book-select-item all';
+  allItem.innerHTML='<input type="checkbox" id="'+id+'-all" checked><label for="'+id+'-all">כל הספרים</label>';
+  dropdown.appendChild(allItem);
+
+  // Group and book checkboxes
+  Object.entries(BOOK_GROUPS).forEach(([groupName,books])=>{
+    const groupItem=document.createElement('div');
+    groupItem.className='book-select-item group';
+    groupItem.innerHTML=`<input type="checkbox" id="${id}-group-${groupName}" checked><label for="${id}-group-${groupName}">${groupName}</label>`;
+    dropdown.appendChild(groupItem);
+
+    books.forEach(book=>{
+      const bookItem=document.createElement('div');
+      bookItem.className='book-select-item book';
+      bookItem.innerHTML=`<input type="checkbox" id="${id}-book-${book.value}" checked data-group="${groupName}" value="${book.value}"><label for="${id}-book-${book.value}">${book.label}</label>`;
+      dropdown.appendChild(bookItem);
+    });
+  });
+
+  container.innerHTML='';
+  container.appendChild(btn);
+  container.appendChild(dropdown);
+  container.className='book-select';
+
+  // Toggle dropdown
+  btn.onclick=e=>{
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  };
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click',e=>{
+    if(!container.contains(e.target)){
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Handle checkbox changes
+  dropdown.addEventListener('change',e=>{
+    const target=e.target;
+    if(!target.matches('input[type="checkbox"]'))return;
+
+    const allCheckbox=dropdown.querySelector('#'+id+'-all');
+
+    if(target.id===id+'-all'){
+      // Toggle all
+      const checked=target.checked;
+      dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.checked=checked);
+      if(checked){
+        state.selected.clear();
+      }else{
+        Object.values(BOOK_GROUPS).flat().forEach(b=>state.selected.add(b.value));
+      }
+    }else if(target.id.startsWith(id+'-group-')){
+      // Toggle group
+      const groupName=target.id.replace(id+'-group-','');
+      const checked=target.checked;
+      dropdown.querySelectorAll(`input[data-group="${groupName}"]`).forEach(cb=>cb.checked=checked);
+      updateAllCheckbox();
+    }else{
+      // Toggle individual book
+      updateGroupCheckbox(target.dataset.group);
+      updateAllCheckbox();
+    }
+
+    updateButtonText();
+  });
+
+  function updateGroupCheckbox(groupName){
+    const groupCheckbox=dropdown.querySelector(`#${id}-group-${groupName}`);
+    const bookCheckboxes=dropdown.querySelectorAll(`input[data-group="${groupName}"]`);
+    const allChecked=Array.from(bookCheckboxes).every(cb=>cb.checked);
+    const someChecked=Array.from(bookCheckboxes).some(cb=>cb.checked);
+    groupCheckbox.checked=allChecked;
+    groupCheckbox.indeterminate=someChecked&&!allChecked;
+  }
+
+  function updateAllCheckbox(){
+    const allCheckbox=dropdown.querySelector('#'+id+'-all');
+    const allBookCheckboxes=dropdown.querySelectorAll('input[type="checkbox"][value]');
+    const allChecked=Array.from(allBookCheckboxes).every(cb=>cb.checked);
+    const someChecked=Array.from(allBookCheckboxes).some(cb=>cb.checked);
+    allCheckbox.checked=allChecked;
+    allCheckbox.indeterminate=someChecked&&!allChecked;
+  }
+
+  function updateButtonText(){
+    const bookCheckboxes=dropdown.querySelectorAll('input[type="checkbox"][value]');
+    const checkedCount=Array.from(bookCheckboxes).filter(cb=>cb.checked).length;
+    const totalCount=bookCheckboxes.length;
+
+    if(checkedCount===0){
+      btn.querySelector('span').textContent='לא נבחרו ספרים';
+    }else if(checkedCount===totalCount){
+      btn.querySelector('span').textContent='כל הספרים';
+    }else{
+      btn.querySelector('span').textContent=`${checkedCount} ספרים`;
+    }
+  }
+
+  // Get selected books
+  state.getSelected=()=>{
+    const allCheckbox=dropdown.querySelector('#'+id+'-all');
+    if(allCheckbox.checked&&!allCheckbox.indeterminate){
+      return[];// Empty array means all books
+    }
+    const bookCheckboxes=dropdown.querySelectorAll('input[type="checkbox"][value]:checked');
+    return Array.from(bookCheckboxes).map(cb=>cb.value);
+  };
+
+  return state;
+}
+
+// Book selector states
+let bookSelector,wcBookSelector,rtBookSelector,elsBookSelector;
+
 // Search
 function syncMode(){
   $("numWrap").style.display=$("mode").value==="number"?"block":"none";
@@ -496,10 +497,11 @@ function syncMode(){
 $("mode").onchange=syncMode;
 
 async function doSearch(){
-  const mode=$("mode").value,kind=$("kind").value,book=$("book").value;
+  const mode=$("mode").value,kind=$("kind").value;
+  const selectedBooks=bookSelector.getSelected();
   const params=new URLSearchParams();
   if(kind)params.set("kind",kind);
-  if(book)params.set("book",book);
+  selectedBooks.forEach(b=>params.append("books",b));
   params.set("limit","500");
 
   if(mode==="number"){
@@ -721,14 +723,14 @@ document.onkeydown=e=>{if(e.key==='Escape')closeModal();};
 // Word Count Search
 async function doWordSearch(){
   const word=$('wcWord').value.trim();
-  const book=$('wcBook').value;
+  const selectedBooks=wcBookSelector.getSelected();
   if(!word){$('wcErr').textContent='הזן מילה';$('wcErr').style.display='block';return;}
 
   $('wcBtn').disabled=true;$('wcStatus').textContent='מחפש...';$('wcResults').innerHTML='';$('wcErr').style.display='none';$('wcStats').style.display='none';
 
   try{
     const params=new URLSearchParams({word});
-    if(book)params.set('book',book);
+    selectedBooks.forEach(b=>params.append('books',b));
     const data=await(await fetch('/word-search?'+params)).json();
 
     $('wcStats').innerHTML=`
@@ -765,12 +767,12 @@ async function doRosheiSearch(){
   if(!word){$('rtErr').textContent='הזן מילה';$('rtErr').style.display='block';return;}
 
   const mode=$('rtMode').value;
-  const book=$('rtBook').value;
+  const selectedBooks=rtBookSelector.getSelected();
   $('rtBtn').disabled=true;$('rtStatus').textContent='מחפש...';$('rtResults').innerHTML='';$('rtErr').style.display='none';$('rtStats').style.display='none';
 
   try{
     const params=new URLSearchParams({word,mode});
-    if(book)params.set('book',book);
+    selectedBooks.forEach(b=>params.append('books',b));
     const data=await(await fetch(`/roshei-tevot?${params}`)).json();
 
     $('rtStats').innerHTML=`
@@ -822,7 +824,7 @@ async function doElsSearch(){
 
   const minSkip=parseInt($('elsMin').value)||1;
   const maxSkip=parseInt($('elsMax').value)||100;
-  const book=$('elsBook').value;
+  const selectedBooks=elsBookSelector.getSelected();
 
   if(minSkip>maxSkip){$('elsErr').textContent='דילוג מינימלי חייב להיות קטן או שווה לדילוג מקסימלי';$('elsErr').style.display='block';return;}
   if(maxSkip>500&&!confirm('דילוג מעל 500 עלול לקחת זמן רב. להמשיך?'))return;
@@ -831,7 +833,7 @@ async function doElsSearch(){
 
   try{
     const params=new URLSearchParams({word,min_skip:minSkip,max_skip:maxSkip});
-    if(book)params.set('book',book);
+    selectedBooks.forEach(b=>params.append('books',b));
     const resp=await fetch(`/els?${params}`);
     const data=await resp.json();
 
@@ -874,6 +876,14 @@ async function doElsSearch(){
 }
 $('elsBtn').onclick=doElsSearch;
 $('elsWord').onkeydown=e=>{if(e.key==='Enter')doElsSearch();};
+
+// Initialize book selectors
+document.addEventListener('DOMContentLoaded',()=>{
+  bookSelector=createBookSelector('bookSelect');
+  wcBookSelector=createBookSelector('wcBookSelect');
+  rtBookSelector=createBookSelector('rtBookSelect');
+  elsBookSelector=createBookSelector('elsBookSelect');
+});
 </script>
 </body>
 </html>

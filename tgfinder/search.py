@@ -42,18 +42,23 @@ def search(
     n: Optional[int] = None,
     limit: Optional[int] = None,   # None = return all
     offset: int = 0,
-    book: Optional[str] = None,  # Filter by book
+    book: Optional[str] = None,  # Filter by single book
+    books: Optional[List[str]] = None,  # Filter by multiple books
 ) -> List[Hit]:
     conn = connect(db_path)
     hits: List[Hit] = []
+
+    # Handle book filtering (books takes precedence over book)
+    book_filter = books if books else ([book] if book else None)
 
     if kind in (None, "verse"):
         lim_sql, lim_params = _limit_clause(limit, offset)
         where_clauses = ["gematria=?"]
         params_list = [value]
-        if book:
-            where_clauses.append("book=?")
-            params_list.append(book)
+        if book_filter:
+            placeholders = ",".join(["?"] * len(book_filter))
+            where_clauses.append(f"book IN ({placeholders})")
+            params_list.extend(book_filter)
         where_sql = " AND ".join(where_clauses)
         sql = (
             "SELECT book,chapter,verse,text,clean_text,gematria FROM verses "
@@ -103,9 +108,10 @@ def search(
             params_list.append(value)
             order = f"ORDER BY {_GBOOK_ORDER_CASE}, g.chapter, g.verse, g.start_word, g.n "
 
-        if book:
-            where_clauses.append("g.book=?")
-            params_list.append(book)
+        if book_filter:
+            placeholders = ",".join(["?"] * len(book_filter))
+            where_clauses.append(f"g.book IN ({placeholders})")
+            params_list.extend(book_filter)
 
         where = "WHERE " + " AND ".join(where_clauses) + " "
         params: Tuple[Any, ...] = tuple(params_list)
