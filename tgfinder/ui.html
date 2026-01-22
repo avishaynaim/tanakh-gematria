@@ -41,7 +41,10 @@
     /* Histogram Styles */
     .histogram-controls{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
     .histogram-controls button{padding:8px 12px;font-size:12px}
+    .histogram-controls input[type="number"]{min-width:100px;padding:8px 10px;font-size:14px}
     .zoom-info{font-size:12px;color:#6b7280;margin-right:auto}
+    .gematria-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .gematria-nav label{font-size:13px;color:#374151;margin:0}
     .histogram-container{position:relative;width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:20px;touch-action:pan-x pinch-zoom}
     .histogram-wrapper{transform-origin:left center;transition:transform 0.1s ease-out}
     .histogram{display:flex;align-items:flex-end;gap:1px;min-height:300px;padding:20px 10px 40px;position:relative}
@@ -173,10 +176,15 @@
       <div id="histogramStats" class="histogram-stats"></div>
 
       <div class="histogram-controls">
-        <button onclick="zoomHistogram('verses', -0.2)">➖ הקטן</button>
-        <button onclick="zoomHistogram('verses', 0.2)">➕ הגדל</button>
-        <button onclick="resetZoom('verses')">↺ איפוס</button>
-        <span id="zoomInfoVerses" class="zoom-info">זום: 100%</span>
+        <div class="gematria-nav">
+          <label>קפוץ לגימטריה:</label>
+          <input type="number" id="jumpToVerses" placeholder="הזן מספר" min="1">
+          <button onclick="jumpToGematria('verses')">🔍 מצא</button>
+        </div>
+        <button onclick="zoomHistogram('verses', -0.2)">➖</button>
+        <button onclick="zoomHistogram('verses', 0.2)">➕</button>
+        <button onclick="resetZoom('verses')">↺</button>
+        <span id="zoomInfoVerses" class="zoom-info">100%</span>
       </div>
 
       <div id="histogramLoading" class="loading-histogram">
@@ -201,10 +209,15 @@
       <div id="histogramWordsStats" class="histogram-stats"></div>
 
       <div class="histogram-controls">
-        <button onclick="zoomHistogram('words', -0.2)">➖ הקטן</button>
-        <button onclick="zoomHistogram('words', 0.2)">➕ הגדל</button>
-        <button onclick="resetZoom('words')">↺ איפוס</button>
-        <span id="zoomInfoWords" class="zoom-info">זום: 100%</span>
+        <div class="gematria-nav">
+          <label>קפוץ לגימטריה:</label>
+          <input type="number" id="jumpToWords" placeholder="הזן מספר" min="1">
+          <button onclick="jumpToGematria('words')">🔍 מצא</button>
+        </div>
+        <button onclick="zoomHistogram('words', -0.2)">➖</button>
+        <button onclick="zoomHistogram('words', 0.2)">➕</button>
+        <button onclick="resetZoom('words')">↺</button>
+        <span id="zoomInfoWords" class="zoom-info">100%</span>
       </div>
 
       <div id="histogramWordsLoading" class="loading-histogram">
@@ -473,6 +486,7 @@ async function loadHistogramVerses() {
 
     renderHistogram('verses', histogramVersesData, $('histogram'), maxCount);
     setupPinchZoom(container, 'verses');
+    setupHistogramClick(container, $('histogram'), 'verses');
 
     loading.style.display = 'none';
     container.style.display = 'block';
@@ -509,6 +523,7 @@ async function loadHistogramWords() {
 
     renderHistogram('words', histogramWordsData, $('histogramWords'), maxCount);
     setupPinchZoom(container, 'words');
+    setupHistogramClick(container, $('histogramWords'), 'words');
 
     loading.style.display = 'none';
     container.style.display = 'block';
@@ -603,6 +618,74 @@ $('modal').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
+
+// ========== Jump to Gematria ==========
+function jumpToGematria(type) {
+  const input = type === 'verses' ? $('jumpToVerses') : $('jumpToWords');
+  const data = type === 'verses' ? histogramVersesData : histogramWordsData;
+  const container = type === 'verses' ? $('histogramContainer') : $('histogramWordsContainer');
+  const histogramDiv = type === 'verses' ? $('histogram') : $('histogramWords');
+
+  const targetGem = parseInt(input.value);
+  if (!targetGem || !data.length) return;
+
+  // Find closest gematria value
+  let closestIdx = 0;
+  let closestDiff = Math.abs(data[0].gematria - targetGem);
+
+  for (let i = 1; i < data.length; i++) {
+    const diff = Math.abs(data[i].gematria - targetGem);
+    if (diff < closestDiff) {
+      closestDiff = diff;
+      closestIdx = i;
+    }
+  }
+
+  // Select and scroll to that bar
+  const bars = histogramDiv.querySelectorAll('.histogram-bar');
+  if (bars[closestIdx]) {
+    // Deselect previous
+    if (selectedBar) selectedBar.classList.remove('selected');
+    bars[closestIdx].classList.add('selected');
+    selectedBar = bars[closestIdx];
+
+    // Scroll bar into view
+    bars[closestIdx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+    // Show modal
+    showModal(type, data[closestIdx]);
+  }
+}
+
+// Enter key on jump input
+$('jumpToVerses')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') jumpToGematria('verses'); });
+$('jumpToWords')?.addEventListener('keydown', (e) => { if(e.key === 'Enter') jumpToGematria('words'); });
+
+// ========== Click anywhere on histogram to find nearest ==========
+function setupHistogramClick(container, histogramDiv, type) {
+  container.addEventListener('click', (e) => {
+    // Only if clicking on the container background, not on a bar
+    if (e.target.classList.contains('histogram-bar')) return;
+    if (e.target.id !== histogramDiv.id && !histogramDiv.contains(e.target)) return;
+
+    const data = type === 'verses' ? histogramVersesData : histogramWordsData;
+    if (!data.length) return;
+
+    const rect = histogramDiv.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const totalWidth = histogramDiv.scrollWidth;
+    const ratio = (clickX + container.scrollLeft) / totalWidth;
+    const idx = Math.min(Math.max(0, Math.floor(ratio * data.length)), data.length - 1);
+
+    const bars = histogramDiv.querySelectorAll('.histogram-bar');
+    if (bars[idx]) {
+      if (selectedBar) selectedBar.classList.remove('selected');
+      bars[idx].classList.add('selected');
+      selectedBar = bars[idx];
+      showModal(type, data[idx]);
+    }
+  });
+}
 </script>
 </body>
 </html>
