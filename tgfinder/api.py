@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .search import search, book_to_hebrew, _BOOK_ORDER_CASE, _GBOOK_ORDER_CASE
-from .gematria import gematria
+from .gematria import gematria, normalize_hebrew
 from .bootstrap_db import ensure_db
 from .db import connect
 
@@ -426,7 +426,8 @@ def api_roshei_tevot(
 
     for row in cur:
         verse_text = row["text"]
-        clean_text = row["clean_text"]
+        # Re-normalize text with fixed code (splits on maqaf properly)
+        clean_text = normalize_hebrew(verse_text)
         words = clean_text.split()
 
         if len(words) < word_len:
