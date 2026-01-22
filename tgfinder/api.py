@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from os import environ
 
 
@@ -183,6 +184,19 @@ class WordHistogramBucket(BaseModel):
     count: int
     words: List[WordInfo]
 
+class WordLocation(BaseModel):
+    ref: str
+    book: str
+    chapter: int
+    verse: int
+    word_index: int
+    verse_text: str
+
+class WordSearchResult(BaseModel):
+    word: str
+    count: int
+    locations: List[WordLocation]
+
 @app.get("/histogram/words", response_model=List[WordHistogramBucket])
 def api_histogram_words(
     db: str = Query(default=None),
@@ -265,3 +279,69 @@ def api_histogram_words(
     _histogram_words_cache = result
 
     return result
+
+
+@app.get("/word-search", response_model=WordSearchResult)
+def api_word_search(
+    word: str = Query(..., min_length=1, description="מילה לחיפוש"),
+    limit: int = Query(500, ge=1, le=10000, description="מספר תוצאות מקסימלי"),
+    db: str = Query(default=None),
+):
+    """
+    Search for a word in the Tanakh and return count + locations.
+    Searches in clean_text (without nikud/teamim) for better matching.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    # Clean the search word (remove non-Hebrew chars for matching)
+    clean_word = re.sub(r'[^\u05d0-\u05ea]', '', word)
+
+    if not clean_word:
+        raise HTTPException(status_code=400, detail="נא להזין מילה בעברית")
+
+    # Search in grams where n=1 (single words)
+    sql = f"""
+        SELECT g.text, g.clean_text, g.book, g.chapter, g.verse, g.start_word, v.text as verse_text
+        FROM grams g
+        JOIN verses v ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse
+        WHERE g.n = 1 AND g.clean_text = ?
+        ORDER BY {_BOOK_ORDER_CASE.replace('book', 'g.book')}, g.chapter, g.verse, g.start_word
+        LIMIT ?
+    """
+
+    # Need the book order case for grams table
+    _GBOOK_ORDER = """CASE WHEN g.book='Genesis' THEN 1 WHEN g.book='Exodus' THEN 2 WHEN g.book='Leviticus' THEN 3 WHEN g.book='Numbers' THEN 4 WHEN g.book='Deuteronomy' THEN 5 WHEN g.book='Joshua' THEN 6 WHEN g.book='Judges' THEN 7 WHEN g.book='1 Samuel' THEN 8 WHEN g.book='2 Samuel' THEN 9 WHEN g.book='1 Kings' THEN 10 WHEN g.book='2 Kings' THEN 11 WHEN g.book='Isaiah' THEN 12 WHEN g.book='Jeremiah' THEN 13 WHEN g.book='Ezekiel' THEN 14 WHEN g.book='Hosea' THEN 15 WHEN g.book='Joel' THEN 16 WHEN g.book='Amos' THEN 17 WHEN g.book='Obadiah' THEN 18 WHEN g.book='Jonah' THEN 19 WHEN g.book='Micah' THEN 20 WHEN g.book='Nahum' THEN 21 WHEN g.book='Habakkuk' THEN 22 WHEN g.book='Zephaniah' THEN 23 WHEN g.book='Haggai' THEN 24 WHEN g.book='Zechariah' THEN 25 WHEN g.book='Malachi' THEN 26 WHEN g.book='Psalms' THEN 27 WHEN g.book='Proverbs' THEN 28 WHEN g.book='Job' THEN 29 WHEN g.book='Song of Songs' THEN 30 WHEN g.book='Ruth' THEN 31 WHEN g.book='Lamentations' THEN 32 WHEN g.book='Ecclesiastes' THEN 33 WHEN g.book='Esther' THEN 34 WHEN g.book='Daniel' THEN 35 WHEN g.book='Ezra' THEN 36 WHEN g.book='Nehemiah' THEN 37 WHEN g.book='1 Chronicles' THEN 38 WHEN g.book='2 Chronicles' THEN 39 ELSE 999 END"""
+
+    sql = f"""
+        SELECT g.text, g.clean_text, g.book, g.chapter, g.verse, g.start_word, v.text as verse_text
+        FROM grams g
+        JOIN verses v ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse
+        WHERE g.n = 1 AND g.clean_text = ?
+        ORDER BY {_GBOOK_ORDER}, g.chapter, g.verse, g.start_word
+        LIMIT ?
+    """
+
+    cur = conn.execute(sql, (clean_word, limit))
+    rows = cur.fetchall()
+
+    # Get total count (without limit)
+    count_sql = "SELECT COUNT(*) as cnt FROM grams WHERE n = 1 AND clean_text = ?"
+    total = conn.execute(count_sql, (clean_word,)).fetchone()["cnt"]
+
+    conn.close()
+
+    locations = []
+    for r in rows:
+        hebrew_book = book_to_hebrew(r["book"])
+        ref = f"{hebrew_book} {r['chapter']}:{r['verse']}"
+        locations.append(WordLocation(
+            ref=ref,
+            book=r["book"],
+            chapter=r["chapter"],
+            verse=r["verse"],
+            word_index=r["start_word"],
+            verse_text=r["verse_text"]
+        ))
+
+    return WordSearchResult(word=clean_word, count=total, locations=locations)

@@ -74,6 +74,7 @@
     .modal-ref{font-weight:600;color:#2563eb;margin-bottom:4px}
     .modal-text{font-size:13px;color:#374151;line-height:1.5}
     .modal-word{background:#dbeafe;padding:2px 6px;border-radius:4px;font-weight:600;margin-left:6px;font-size:12px}
+    mark{background:#fef08a;padding:1px 4px;border-radius:3px;font-weight:600}
   </style>
 </head>
 <body>
@@ -83,6 +84,7 @@
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
     <div class="tab" data-tab="histogram">📊 פסוקים</div>
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
+    <div class="tab" data-tab="wordCount">🔢 ספירת מילים</div>
   </div>
 
   <!-- Search -->
@@ -173,6 +175,25 @@
       </div>
 
       <div id="wLoading" class="loading"><div class="spinner"></div>טוען...</div>
+    </div>
+  </div>
+
+  <!-- Word Count -->
+  <div id="wordCountTab" class="tab-content">
+    <div class="card no-top">
+      <div class="row">
+        <div>
+          <label>מילה לחיפוש</label>
+          <input id="wcWord" type="text" placeholder="שלום" style="width:180px">
+        </div>
+        <div><label>&nbsp;</label><button id="wcBtn">חפש</button></div>
+      </div>
+      <div id="wcErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="wcStats" class="stats" style="display:none"></div>
+      <div id="wcStatus" class="meta">הזן מילה לחיפוש</div>
+      <div id="wcResults" class="results"></div>
     </div>
   </div>
 </main>
@@ -405,6 +426,45 @@ function searchGem(g,k){
 
 $('modal').onclick=e=>{if(e.target.id==='modal')closeModal();};
 document.onkeydown=e=>{if(e.key==='Escape')closeModal();};
+
+// Word Count Search
+async function doWordSearch(){
+  const word=$('wcWord').value.trim();
+  if(!word){$('wcErr').textContent='הזן מילה';$('wcErr').style.display='block';return;}
+
+  $('wcBtn').disabled=true;$('wcStatus').textContent='מחפש...';$('wcResults').innerHTML='';$('wcErr').style.display='none';$('wcStats').style.display='none';
+
+  try{
+    const data=await(await fetch('/word-search?word='+encodeURIComponent(word)+'&limit=500')).json();
+
+    $('wcStats').innerHTML=`
+      <div class="stat"><b>${data.count.toLocaleString()}</b><span>מופעים בתנ״ך</span></div>
+      <div class="stat"><b>${data.word}</b><span>מילה (ללא ניקוד)</span></div>
+    `;
+    $('wcStats').style.display='flex';
+
+    if(data.count===0){
+      $('wcStatus').textContent='לא נמצאו תוצאות';
+    }else{
+      const showing=Math.min(data.locations.length,data.count);
+      $('wcStatus').textContent=`מציג ${showing} מתוך ${data.count} מופעים`;
+      $('wcResults').innerHTML=data.locations.map(loc=>{
+        // Highlight the word in verse text
+        const verseWords=loc.verse_text.split(/\s+/);
+        const highlighted=verseWords.map((w,i)=>i===loc.word_index-1?`<mark>${w}</mark>`:w).join(' ');
+        return `<div class="hit">
+          <div><span class="ref">${loc.ref}</span><span class="pill">מילה ${loc.word_index}</span></div>
+          <div class="text">${highlighted}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    $('wcErr').textContent=e.message;$('wcErr').style.display='block';
+  }
+  $('wcBtn').disabled=false;
+}
+$('wcBtn').onclick=doWordSearch;
+$('wcWord').onkeydown=e=>{if(e.key==='Enter')doWordSearch();};
 </script>
 </body>
 </html>
