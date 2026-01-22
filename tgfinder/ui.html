@@ -763,6 +763,13 @@ async function doWordSearch(){
     selectedBooks.forEach(b=>params.append('books',b));
     const data=await(await fetch('/word-search?'+params)).json();
 
+    // Check for API error
+    if(data.detail){
+      $('wcErr').textContent=data.detail;$('wcErr').style.display='block';
+      $('wcBtn').disabled=false;
+      return;
+    }
+
     $('wcStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>מופעים בתנ״ך</span></div>
       <div class="stat"><b>${data.word}</b><span>מילה (ללא ניקוד)</span></div>
@@ -804,6 +811,13 @@ async function doRosheiSearch(){
     const params=new URLSearchParams({word,mode});
     selectedBooks.forEach(b=>params.append('books',b));
     const data=await(await fetch(`/roshei-tevot?${params}`)).json();
+
+    // Check for API error
+    if(data.detail){
+      $('rtErr').textContent=data.detail;$('rtErr').style.display='block';
+      $('rtBtn').disabled=false;
+      return;
+    }
 
     $('rtStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div>
