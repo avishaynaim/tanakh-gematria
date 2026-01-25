@@ -665,3 +665,269 @@ def api_els(
         count=len(matches),
         matches=matches
     )
+
+
+# ============ Letter Start/End Search ============
+
+class LetterSearchMatch(BaseModel):
+    ref: str
+    verse_text: str
+    first_letter: str
+    last_letter: str
+    first_word: str
+    last_word: str
+
+class LetterSearchResult(BaseModel):
+    start_letter: str
+    end_letter: str
+    count: int
+    matches: List[LetterSearchMatch]
+
+@app.get("/letter-search", response_model=LetterSearchResult)
+def api_letter_search(
+    start: str = Query(..., min_length=1, max_length=1, description="אות התחלה"),
+    end: str = Query(..., min_length=1, max_length=1, description="אות סיום"),
+    db: str = Query(default=None),
+):
+    """
+    Search for verses that start with one letter and end with another.
+    Final letters (sofit) are normalized to regular letters for matching.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    # Normalize search letters (handle sofit)
+    start_letter = normalize_sofit(start.strip())
+    end_letter = normalize_sofit(end.strip())
+
+    if not ('\u05d0' <= start_letter <= '\u05ea') or not ('\u05d0' <= end_letter <= '\u05ea'):
+        raise HTTPException(status_code=400, detail="נא להזין אותיות בעברית בלבד")
+
+    # Get all verses
+    sql = """
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        ORDER BY
+            CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
+            WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
+            WHEN book='Judges' THEN 7 WHEN book='1 Samuel' THEN 8 WHEN book='2 Samuel' THEN 9
+            WHEN book='1 Kings' THEN 10 WHEN book='2 Kings' THEN 11 WHEN book='Isaiah' THEN 12
+            WHEN book='Jeremiah' THEN 13 WHEN book='Ezekiel' THEN 14 WHEN book='Hosea' THEN 15
+            WHEN book='Joel' THEN 16 WHEN book='Amos' THEN 17 WHEN book='Obadiah' THEN 18
+            WHEN book='Jonah' THEN 19 WHEN book='Micah' THEN 20 WHEN book='Nahum' THEN 21
+            WHEN book='Habakkuk' THEN 22 WHEN book='Zephaniah' THEN 23 WHEN book='Haggai' THEN 24
+            WHEN book='Zechariah' THEN 25 WHEN book='Malachi' THEN 26 WHEN book='Psalms' THEN 27
+            WHEN book='Proverbs' THEN 28 WHEN book='Job' THEN 29 WHEN book='Song of Songs' THEN 30
+            WHEN book='Ruth' THEN 31 WHEN book='Lamentations' THEN 32 WHEN book='Ecclesiastes' THEN 33
+            WHEN book='Esther' THEN 34 WHEN book='Daniel' THEN 35 WHEN book='Ezra' THEN 36
+            WHEN book='Nehemiah' THEN 37 WHEN book='1 Chronicles' THEN 38 WHEN book='2 Chronicles' THEN 39
+            ELSE 999 END, chapter, verse
+    """
+
+    cur = conn.execute(sql)
+    matches = []
+
+    for row in cur:
+        clean_text = row["clean_text"]
+        words = clean_text.split()
+
+        if len(words) < 1:
+            continue
+
+        first_word = words[0]
+        last_word = words[-1]
+
+        if not first_word or not last_word:
+            continue
+
+        # Get first letter of first word and last letter of last word (normalized)
+        actual_first = normalize_sofit(first_word[0])
+        actual_last = normalize_sofit(last_word[-1])
+
+        if actual_first == start_letter and actual_last == end_letter:
+            hebrew_book = book_to_hebrew(row["book"])
+            ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+            matches.append(LetterSearchMatch(
+                ref=ref,
+                verse_text=row["text"],
+                first_letter=first_word[0],
+                last_letter=last_word[-1],
+                first_word=first_word,
+                last_word=last_word
+            ))
+
+    conn.close()
+
+    return LetterSearchResult(
+        start_letter=start,
+        end_letter=end,
+        count=len(matches),
+        matches=matches
+    )
+
+
+# ============ Kabbalah Terms Search ============
+
+# Sefirot and common Kabbalah terms
+KABBALAH_TERMS = {
+    "sefirot": {
+        "name_he": "ספירות",
+        "terms": [
+            {"term": "כתר", "name": "כתר (Crown)"},
+            {"term": "חכמה", "name": "חכמה (Wisdom)"},
+            {"term": "בינה", "name": "בינה (Understanding)"},
+            {"term": "דעת", "name": "דעת (Knowledge)"},
+            {"term": "חסד", "name": "חסד (Kindness)"},
+            {"term": "גבורה", "name": "גבורה (Strength)"},
+            {"term": "תפארת", "name": "תפארת (Beauty)"},
+            {"term": "נצח", "name": "נצח (Victory)"},
+            {"term": "הוד", "name": "הוד (Splendor)"},
+            {"term": "יסוד", "name": "יסוד (Foundation)"},
+            {"term": "מלכות", "name": "מלכות (Kingship)"},
+        ]
+    },
+    "names": {
+        "name_he": "שמות הקודש",
+        "terms": [
+            {"term": "אהיה", "name": "אהיה (I Am)"},
+            {"term": "יה", "name": "י-ה"},
+            {"term": "אל", "name": "אל (God)"},
+            {"term": "אלהים", "name": "אלהים (God)"},
+            {"term": "שדי", "name": "שדי (Almighty)"},
+            {"term": "צבאות", "name": "צבאות (Hosts)"},
+            {"term": "אדני", "name": "אדני (Lord)"},
+        ]
+    },
+    "concepts": {
+        "name_he": "מושגים",
+        "terms": [
+            {"term": "אור", "name": "אור (Light)"},
+            {"term": "כלי", "name": "כלי (Vessel)"},
+            {"term": "עולם", "name": "עולם (World)"},
+            {"term": "נשמה", "name": "נשמה (Soul)"},
+            {"term": "רוח", "name": "רוח (Spirit)"},
+            {"term": "נפש", "name": "נפש (Soul)"},
+            {"term": "חיה", "name": "חיה (Living)"},
+            {"term": "יחידה", "name": "יחידה (Unique)"},
+            {"term": "תיקון", "name": "תיקון (Rectification)"},
+            {"term": "קליפה", "name": "קליפה (Shell)"},
+        ]
+    }
+}
+
+class KabbalahTermLocation(BaseModel):
+    ref: str
+    verse_text: str
+    word_text: str
+    word_index: int
+
+class KabbalahTermResult(BaseModel):
+    term: str
+    name: str
+    count: int
+    locations: List[KabbalahTermLocation]
+
+class KabbalahCategoryResult(BaseModel):
+    category: str
+    category_name: str
+    terms: List[KabbalahTermResult]
+
+@app.get("/kabbalah-terms")
+def api_kabbalah_terms():
+    """Return available Kabbalah term categories."""
+    return {
+        category: {
+            "name": data["name_he"],
+            "terms": [{"term": t["term"], "name": t["name"]} for t in data["terms"]]
+        }
+        for category, data in KABBALAH_TERMS.items()
+    }
+
+@app.get("/kabbalah-search", response_model=List[KabbalahTermResult])
+def api_kabbalah_search(
+    category: str = Query(None, description="קטגוריה: sefirot, names, concepts"),
+    term: str = Query(None, description="מונח ספציפי לחיפוש"),
+    db: str = Query(default=None),
+):
+    """
+    Search for Kabbalah terms in the Tanakh.
+    Either specify a category (searches all terms in that category)
+    or a specific term.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    # Determine which terms to search
+    terms_to_search = []
+
+    if term:
+        # Search for a specific term
+        clean_term = re.sub(r'[^\u05d0-\u05ea]', '', term)
+        if clean_term:
+            terms_to_search.append({"term": clean_term, "name": clean_term})
+    elif category and category in KABBALAH_TERMS:
+        terms_to_search = KABBALAH_TERMS[category]["terms"]
+    else:
+        # Search all terms from all categories
+        for cat_data in KABBALAH_TERMS.values():
+            terms_to_search.extend(cat_data["terms"])
+
+    if not terms_to_search:
+        raise HTTPException(status_code=400, detail="נא לציין קטגוריה או מונח")
+
+    results = []
+
+    for term_info in terms_to_search:
+        search_term = term_info["term"]
+        normalized_term = normalize_sofit(search_term)
+
+        # Search using normalized comparison
+        sql = """
+            SELECT g.text, g.clean_text, g.book, g.chapter, g.verse, g.start_word, v.text as verse_text
+            FROM grams g
+            JOIN verses v ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse
+            WHERE g.n = 1 AND
+                REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(g.clean_text, 'ך', 'כ'), 'ם', 'מ'), 'ן', 'נ'), 'ף', 'פ'), 'ץ', 'צ') = ?
+            ORDER BY
+                CASE WHEN g.book='Genesis' THEN 1 WHEN g.book='Exodus' THEN 2 WHEN g.book='Leviticus' THEN 3
+                WHEN g.book='Numbers' THEN 4 WHEN g.book='Deuteronomy' THEN 5 WHEN g.book='Joshua' THEN 6
+                WHEN g.book='Judges' THEN 7 WHEN g.book='1 Samuel' THEN 8 WHEN g.book='2 Samuel' THEN 9
+                WHEN g.book='1 Kings' THEN 10 WHEN g.book='2 Kings' THEN 11 WHEN g.book='Isaiah' THEN 12
+                WHEN g.book='Jeremiah' THEN 13 WHEN g.book='Ezekiel' THEN 14 WHEN g.book='Hosea' THEN 15
+                WHEN g.book='Joel' THEN 16 WHEN g.book='Amos' THEN 17 WHEN g.book='Obadiah' THEN 18
+                WHEN g.book='Jonah' THEN 19 WHEN g.book='Micah' THEN 20 WHEN g.book='Nahum' THEN 21
+                WHEN g.book='Habakkuk' THEN 22 WHEN g.book='Zephaniah' THEN 23 WHEN g.book='Haggai' THEN 24
+                WHEN g.book='Zechariah' THEN 25 WHEN g.book='Malachi' THEN 26 WHEN g.book='Psalms' THEN 27
+                WHEN g.book='Proverbs' THEN 28 WHEN g.book='Job' THEN 29 WHEN g.book='Song of Songs' THEN 30
+                WHEN g.book='Ruth' THEN 31 WHEN g.book='Lamentations' THEN 32 WHEN g.book='Ecclesiastes' THEN 33
+                WHEN g.book='Esther' THEN 34 WHEN g.book='Daniel' THEN 35 WHEN g.book='Ezra' THEN 36
+                WHEN g.book='Nehemiah' THEN 37 WHEN g.book='1 Chronicles' THEN 38 WHEN g.book='2 Chronicles' THEN 39
+                ELSE 999 END, g.chapter, g.verse, g.start_word
+        """
+
+        cur = conn.execute(sql, (normalized_term,))
+        locations = []
+
+        for r in cur:
+            hebrew_book = book_to_hebrew(r["book"])
+            ref = f"{hebrew_book} {r['chapter']}:{r['verse']}"
+            locations.append(KabbalahTermLocation(
+                ref=ref,
+                verse_text=r["verse_text"],
+                word_text=r["text"],
+                word_index=r["start_word"]
+            ))
+
+        results.append(KabbalahTermResult(
+            term=search_term,
+            name=term_info["name"],
+            count=len(locations),
+            locations=locations
+        ))
+
+    conn.close()
+
+    # Sort by count descending
+    results.sort(key=lambda x: x.count, reverse=True)
+
+    return results
