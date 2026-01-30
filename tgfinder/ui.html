@@ -249,6 +249,9 @@
           <label>ספרים</label>
           <div id="rtBookSelect"></div>
         </div>
+        <div style="display:flex;align-items:center;gap:4px;padding-top:18px">
+          <input type="checkbox" id="rtReverse"><label for="rtReverse" style="margin:0;cursor:pointer">סדר הפוך</label>
+        </div>
         <div><label>&nbsp;</label><button id="rtBtn">חפש</button></div>
       </div>
       <div id="rtErr" class="error" style="display:none"></div>
@@ -279,6 +282,9 @@
         <div>
           <label>ספרים</label>
           <div id="elsBookSelect"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding-top:18px">
+          <input type="checkbox" id="elsReverse"><label for="elsReverse" style="margin:0;cursor:pointer">סדר הפוך</label>
         </div>
         <div><label>&nbsp;</label><button id="elsBtn">חפש</button></div>
       </div>
@@ -323,6 +329,9 @@
             <option value="ק">ק</option><option value="ר">ר</option><option value="ש">ש</option>
             <option value="ת" selected>ת</option>
           </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding-top:18px">
+          <input type="checkbox" id="lsReverse"><label for="lsReverse" style="margin:0;cursor:pointer">סדר הפוך</label>
         </div>
         <div><label>&nbsp;</label><button id="lsBtn">חפש</button></div>
       </div>
@@ -889,6 +898,7 @@ async function doRosheiSearch(){
   try{
     const params=new URLSearchParams({word,mode});
     selectedBooks.forEach(b=>params.append('books',b));
+    if($('rtReverse').checked)params.set('reverse','true');
     const data=await(await fetch(`/roshei-tevot?${params}`)).json();
 
     // Check for API error
@@ -957,6 +967,7 @@ async function doElsSearch(){
   try{
     const params=new URLSearchParams({word,min_skip:minSkip,max_skip:maxSkip});
     selectedBooks.forEach(b=>params.append('books',b));
+    if($('elsReverse').checked)params.set('reverse','true');
     const resp=await fetch(`/els?${params}`);
     const data=await resp.json();
 
@@ -1008,7 +1019,9 @@ async function doLetterSearch(){
   $('lsBtn').disabled=true;$('lsStatus').textContent='מחפש...';$('lsResults').innerHTML='';$('lsErr').style.display='none';$('lsStats').style.display='none';
 
   try{
-    const data=await(await fetch(`/letter-search?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)).json();
+    const params=new URLSearchParams({start,end});
+    if($('lsReverse').checked)params.set('reverse','true');
+    const data=await(await fetch(`/letter-search?${params}`)).json();
 
     $('lsStats').innerHTML=`
       <div class="stat"><b>${data.count.toLocaleString()}</b><span>פסוקים</span></div>

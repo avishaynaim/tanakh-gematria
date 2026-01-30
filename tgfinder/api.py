@@ -375,6 +375,7 @@ def api_roshei_tevot(
     mode: str = Query("first", description="first=ראשי תיבות, last=סופי תיבות, או מספר לאופסט"),
     book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
     books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    reverse: bool = Query(False, description="הפוך את סדר המילים בפסוק לפני החיפוש"),
     db: str = Query(default=None),
 ):
     """
@@ -429,6 +430,8 @@ def api_roshei_tevot(
         # Re-normalize text with fixed code (splits on maqaf properly)
         clean_text = normalize_hebrew(verse_text)
         words = clean_text.split()
+        if reverse:
+            words = words[::-1]
 
         if len(words) < word_len:
             continue
@@ -460,6 +463,8 @@ def api_roshei_tevot(
                 ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
                 # Get original words with nikud
                 orig_words = verse_text.split()
+                if reverse:
+                    orig_words = orig_words[::-1]
                 match_words = orig_words[i:i + word_len] if i + word_len <= len(orig_words) else window_words
                 matches.append(RosheiTevotMatch(
                     ref=ref,
@@ -509,6 +514,7 @@ def api_els(
     min_skip: int = Query(1, ge=1, description="דילוג מינימלי"),
     book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית) - למען תאימות לאחור"),
     books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    reverse: bool = Query(False, description="הפוך את רצף האותיות לפני החיפוש"),
     db: str = Query(default=None),
 ):
     """
@@ -603,6 +609,15 @@ def api_els(
         full_text = _els_full_cache
         positions = _els_positions_cache
         clean_to_full = _els_clean_to_full_map
+    if reverse:
+        clean_text = clean_text[::-1]
+        full_text = full_text[::-1]
+        positions = positions[::-1]
+        # Rebuild clean_to_full mapping for reversed text
+        # In reversed full_text, index i maps to original index (len(full_text)-1-i)
+        orig_full_len = len(full_text)
+        clean_to_full = [orig_full_len - 1 - clean_to_full[len(clean_to_full) - 1 - i] for i in range(len(clean_to_full))]
+
     text_normalized = normalize_sofit(clean_text)
     text_len = len(clean_text)
     word_len = len(normalized_search)
@@ -687,6 +702,7 @@ class LetterSearchResult(BaseModel):
 def api_letter_search(
     start: str = Query(..., min_length=1, max_length=1, description="אות התחלה"),
     end: str = Query(..., min_length=1, max_length=1, description="אות סיום"),
+    reverse: bool = Query(False, description="הפוך את סדר המילים בפסוק לפני החיפוש"),
     db: str = Query(default=None),
 ):
     """
@@ -730,6 +746,8 @@ def api_letter_search(
     for row in cur:
         clean_text = row["clean_text"]
         words = clean_text.split()
+        if reverse:
+            words = words[::-1]
 
         if len(words) < 1:
             continue
