@@ -682,6 +682,93 @@ def api_els(
     )
 
 
+# ============ Text Search ============
+
+class TextSearchHit(BaseModel):
+    ref: str
+    text: str
+    match_text: str
+    book: str
+    chapter: int
+    verse: int
+
+
+class TextSearchResult(BaseModel):
+    query: str
+    count: int
+    hits: List[TextSearchHit]
+
+
+@app.get("/text-search", response_model=TextSearchResult)
+def api_text_search(
+    q: str = Query(..., min_length=1, description="מילה או משפט לחיפוש"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    limit: Optional[int] = Query(None, ge=1, le=10000),
+    offset: int = Query(0, ge=0),
+    db: str = Query(default=None),
+):
+    """
+    Search for Hebrew words or phrases in the Tanakh text.
+    Supports partial matches (word within word, phrase within verse).
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    # Normalize the search query (handles sofit letters, removes nikud)
+    normalized_query = normalize_hebrew(q)
+    if not normalized_query:
+        raise HTTPException(status_code=400, detail="נא להזין טקסט בעברית")
+
+    # Build SQL query with LIKE for partial matching
+    where_clauses = ["clean_text LIKE ?"]
+    params_list = [f"%{normalized_query}%"]
+
+    if books:
+        placeholders = ",".join(["?"] * len(books))
+        where_clauses.append(f"book IN ({placeholders})")
+        params_list.extend(books)
+
+    where_sql = " AND ".join(where_clauses)
+
+    # Count total matches first
+    count_sql = f"SELECT COUNT(*) FROM verses WHERE {where_sql}"
+    total_count = conn.execute(count_sql, tuple(params_list)).fetchone()[0]
+
+    # Build main query with ordering and pagination
+    sql = f"""
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        WHERE {where_sql}
+        ORDER BY {_BOOK_ORDER_CASE}, chapter, verse
+    """
+
+    if limit is not None:
+        sql += f" LIMIT {limit} OFFSET {offset}"
+
+    cur = conn.execute(sql, tuple(params_list))
+    hits = []
+
+    for row in cur:
+        hebrew_book = book_to_hebrew(row["book"])
+        ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+        hits.append(TextSearchHit(
+            ref=ref,
+            text=row["text"],
+            match_text=normalized_query,
+            book=row["book"],
+            chapter=row["chapter"],
+            verse=row["verse"]
+        ))
+
+    conn.close()
+
+    return TextSearchResult(
+        query=normalized_query,
+        count=total_count,
+        hits=hits
+    )
+
+
 # ============ Letter Start/End Search ============
 
 class LetterSearchMatch(BaseModel):

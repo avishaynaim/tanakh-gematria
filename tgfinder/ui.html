@@ -18,8 +18,8 @@
     button:disabled{opacity:.5}
     button.secondary{background:#e5e7eb;color:#374151}
     button.small{padding:5px 10px;font-size:11px}
-    .tabs{display:flex;background:#fff;border-radius:12px 12px 0 0;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-    .tab{flex:1;padding:12px;text-align:center;cursor:pointer;font-weight:600;font-size:13px;color:#6b7280;border-bottom:3px solid transparent}
+    .tabs{display:flex;flex-wrap:wrap;background:#fff;border-radius:12px 12px 0 0;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .tab{flex:1 1 auto;padding:10px 8px;text-align:center;cursor:pointer;font-weight:600;font-size:12px;color:#6b7280;border-bottom:3px solid transparent;min-width:fit-content}
     .tab:hover{background:#f9fafb}
     .tab.active{color:#2563eb;border-bottom-color:#2563eb}
     .tab-content{display:none}
@@ -108,6 +108,7 @@
     <div class="tab" data-tab="els">דילוג אותיות</div>
     <div class="tab" data-tab="letterSearch">🔤 אות פותחת/סוגרת</div>
     <div class="tab" data-tab="kabbalah">✡️ מושגי קבלה</div>
+    <div class="tab" data-tab="textSearch">📝 חיפוש בטקסט</div>
   </div>
 
   <!-- Search -->
@@ -377,6 +378,31 @@
       <div id="kbResults" class="results"></div>
     </div>
   </div>
+
+  <!-- Text Search -->
+  <div id="textSearchTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">🔎 חיפוש מילה או משפט בתנ״ך</h3>
+      <p class="hint" style="margin-bottom:12px">חפש מילים או ביטויים בטקסט התנ״ך. תומך בהתאמות חלקיות (מילה בתוך מילה, ביטוי בתוך פסוק).</p>
+      <div class="row">
+        <div>
+          <label>טקסט לחיפוש</label>
+          <input id="tsQuery" type="text" placeholder="בראשית" style="width:200px">
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="tsBookSelect"></div>
+        </div>
+        <div><label>&nbsp;</label><button id="tsBtn">חפש</button></div>
+      </div>
+      <div id="tsErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="tsStats" class="stats" style="display:none"></div>
+      <div id="tsStatus" class="meta">הזן טקסט לחיפוש</div>
+      <div id="tsResults" class="results"></div>
+    </div>
+  </div>
 </main>
 
 <!-- Modal -->
@@ -605,7 +631,7 @@ function createBookSelector(id){
 }
 
 // Book selector states
-let bookSelector,wcBookSelector,rtBookSelector,elsBookSelector;
+let bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector;
 
 // Search
 function syncMode(){
@@ -1124,6 +1150,63 @@ async function doKabbalahSearch(){
 $('kbBtn').onclick=doKabbalahSearch;
 $('kbTerm').onkeydown=e=>{if(e.key==='Enter')doKabbalahSearch();};
 
+// Text Search
+async function doTextSearch(){
+  const query=$('tsQuery').value.trim();
+  if(!query){$('tsErr').textContent='הזן טקסט לחיפוש';$('tsErr').style.display='block';return;}
+
+  const selectedBooks=tsBookSelector?tsBookSelector.getSelected():[];
+  $('tsBtn').disabled=true;$('tsStatus').textContent='מחפש...';$('tsResults').innerHTML='';$('tsErr').style.display='none';$('tsStats').style.display='none';
+
+  try{
+    const params=new URLSearchParams({q:query,limit:'500'});
+    selectedBooks.forEach(b=>params.append('books',b));
+    const resp=await fetch(`/text-search?${params}`);
+    const data=await resp.json();
+
+    // Check for API error
+    if(data.detail){
+      $('tsErr').textContent=data.detail;$('tsErr').style.display='block';
+      $('tsBtn').disabled=false;
+      return;
+    }
+
+    $('tsStats').innerHTML=`
+      <div class="stat"><b>${data.count.toLocaleString()}</b><span>פסוקים מתאימים</span></div>
+      <div class="stat"><b>${data.query}</b><span>חיפוש (מנורמל)</span></div>
+    `;
+    $('tsStats').style.display='flex';
+
+    if(data.count===0){
+      $('tsStatus').textContent='לא נמצאו תוצאות';
+    }else{
+      const showing=data.hits.length;
+      $('tsStatus').textContent=`מציג ${showing.toLocaleString()} מתוך ${data.count.toLocaleString()} תוצאות`;
+      $('tsResults').innerHTML=data.hits.map(hit=>{
+        // Highlight matched text in verse
+        // We need to highlight in the clean_text context but show in original text
+        // For simplicity, try to find and highlight the query in the original text
+        const escaped=data.query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        // Create a pattern that matches the query with possible nikud/marks between letters
+        const letters=data.query.split('');
+        const pattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
+        const regex=new RegExp(pattern,'g');
+        const highlighted=hit.text.replace(regex,m=>`<mark>${m}</mark>`);
+        return `<div class="hit">
+          <div><span class="ref">${hit.ref}</span></div>
+          <div class="text">${highlighted}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    console.error('Text search error:',e);
+    $('tsErr').textContent=e.message||'שגיאה בחיפוש';$('tsErr').style.display='block';
+  }
+  $('tsBtn').disabled=false;
+}
+$('tsBtn').onclick=doTextSearch;
+$('tsQuery').onkeydown=e=>{if(e.key==='Enter')doTextSearch();};
+
 // Initialize book selectors immediately
 function initBookSelectors(){
   console.log('Initializing book selectors...');
@@ -1131,7 +1214,8 @@ function initBookSelectors(){
   wcBookSelector=createBookSelector('wcBookSelect');
   rtBookSelector=createBookSelector('rtBookSelect');
   elsBookSelector=createBookSelector('elsBookSelect');
-  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector});
+  tsBookSelector=createBookSelector('tsBookSelect');
+  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector});
 }
 
 // Try to initialize immediately if DOM is ready
