@@ -97,7 +97,7 @@
   </style>
 </head>
 <body>
-<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.5</span></h1></header>
+<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.6</span></h1></header>
 <main>
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
@@ -383,11 +383,18 @@
   <div id="textSearchTab" class="tab-content">
     <div class="card no-top">
       <h3 style="margin:0 0 12px;font-size:15px">🔎 חיפוש מילה או משפט בתנ״ך</h3>
-      <p class="hint" style="margin-bottom:12px">חפש מילים או ביטויים בטקסט התנ״ך. תומך בהתאמות חלקיות (מילה בתוך מילה, ביטוי בתוך פסוק).</p>
+      <p class="hint" style="margin-bottom:12px">חפש מילים או ביטויים בטקסט התנ״ך. כל מופע נספר בנפרד.</p>
       <div class="row">
         <div>
           <label>טקסט לחיפוש</label>
           <input id="tsQuery" type="text" placeholder="בראשית" style="width:200px">
+        </div>
+        <div>
+          <label>סוג התאמה</label>
+          <select id="tsMode">
+            <option value="partial">חלקי (מכיל)</option>
+            <option value="full">מילה שלמה בלבד</option>
+          </select>
         </div>
         <div>
           <label>ספרים</label>
@@ -1155,11 +1162,12 @@ async function doTextSearch(){
   const query=$('tsQuery').value.trim();
   if(!query){$('tsErr').textContent='הזן טקסט לחיפוש';$('tsErr').style.display='block';return;}
 
+  const mode=$('tsMode').value;
   const selectedBooks=tsBookSelector?tsBookSelector.getSelected():[];
   $('tsBtn').disabled=true;$('tsStatus').textContent='מחפש...';$('tsResults').innerHTML='';$('tsErr').style.display='none';$('tsStats').style.display='none';
 
   try{
-    const params=new URLSearchParams({q:query,limit:'500'});
+    const params=new URLSearchParams({q:query,mode:mode,limit:'1000'});
     selectedBooks.forEach(b=>params.append('books',b));
     const resp=await fetch(`/text-search?${params}`);
     const data=await resp.json();
@@ -1172,7 +1180,8 @@ async function doTextSearch(){
     }
 
     $('tsStats').innerHTML=`
-      <div class="stat"><b>${data.count.toLocaleString()}</b><span>פסוקים מתאימים</span></div>
+      <div class="stat"><b>${data.count.toLocaleString()}</b><span>מופעים</span></div>
+      <div class="stat"><b>${data.verse_count.toLocaleString()}</b><span>פסוקים</span></div>
       <div class="stat"><b>${data.query}</b><span>חיפוש (מנורמל)</span></div>
     `;
     $('tsStats').style.display='flex';
@@ -1181,19 +1190,16 @@ async function doTextSearch(){
       $('tsStatus').textContent='לא נמצאו תוצאות';
     }else{
       const showing=data.hits.length;
-      $('tsStatus').textContent=`מציג ${showing.toLocaleString()} מתוך ${data.count.toLocaleString()} תוצאות`;
+      $('tsStatus').textContent=`מציג ${showing.toLocaleString()} מתוך ${data.count.toLocaleString()} מופעים`;
       $('tsResults').innerHTML=data.hits.map(hit=>{
         // Highlight matched text in verse
-        // We need to highlight in the clean_text context but show in original text
-        // For simplicity, try to find and highlight the query in the original text
-        const escaped=data.query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-        // Create a pattern that matches the query with possible nikud/marks between letters
         const letters=data.query.split('');
         const pattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
         const regex=new RegExp(pattern,'g');
         const highlighted=hit.text.replace(regex,m=>`<mark>${m}</mark>`);
+        const occInfo=hit.total_in_verse>1?`<span class="pill">מופע ${hit.occurrence}/${hit.total_in_verse}</span>`:'';
         return `<div class="hit">
-          <div><span class="ref">${hit.ref}</span></div>
+          <div><span class="ref">${hit.ref}</span>${occInfo}</div>
           <div class="text">${highlighted}</div>
         </div>`;
       }).join('');

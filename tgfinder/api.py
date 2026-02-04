@@ -691,17 +691,21 @@ class TextSearchHit(BaseModel):
     book: str
     chapter: int
     verse: int
+    occurrence: int  # Which occurrence in this verse (1-based)
+    total_in_verse: int  # Total occurrences in this verse
 
 
 class TextSearchResult(BaseModel):
     query: str
-    count: int
+    count: int  # Total occurrences across all verses
+    verse_count: int  # Number of verses containing the query
     hits: List[TextSearchHit]
 
 
 @app.get("/text-search", response_model=TextSearchResult)
 def api_text_search(
     q: str = Query(..., min_length=1, description="מילה או משפט לחיפוש"),
+    mode: str = Query("partial", description="partial=חלקי, full=מילה שלמה"),
     books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     limit: Optional[int] = Query(None, ge=1, le=10000),
     offset: int = Query(0, ge=0),
@@ -709,7 +713,9 @@ def api_text_search(
 ):
     """
     Search for Hebrew words or phrases in the Tanakh text.
-    Supports partial matches (word within word, phrase within verse).
+    mode=partial: substring match (default)
+    mode=full: full word match only
+    Each occurrence is counted separately.
     """
     db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
     conn = connect(db_path)
@@ -730,11 +736,7 @@ def api_text_search(
 
     where_sql = " AND ".join(where_clauses)
 
-    # Count total matches first
-    count_sql = f"SELECT COUNT(*) FROM verses WHERE {where_sql}"
-    total_count = conn.execute(count_sql, tuple(params_list)).fetchone()[0]
-
-    # Build main query with ordering and pagination
+    # Build main query with ordering
     sql = f"""
         SELECT book, chapter, verse, text, clean_text
         FROM verses
@@ -742,30 +744,66 @@ def api_text_search(
         ORDER BY {_BOOK_ORDER_CASE}, chapter, verse
     """
 
-    if limit is not None:
-        sql += f" LIMIT {limit} OFFSET {offset}"
-
     cur = conn.execute(sql, tuple(params_list))
-    hits = []
+    all_hits = []
+    verse_count = 0
 
     for row in cur:
+        clean_text = row["clean_text"]
+
+        # Find all occurrences in this verse
+        if mode == "full":
+            # Full word match - split into words and check each
+            words = clean_text.split()
+            occurrences = []
+            for i, word in enumerate(words):
+                if word == normalized_query:
+                    occurrences.append(i)
+        else:
+            # Partial match - find all substring occurrences
+            occurrences = []
+            start = 0
+            while True:
+                pos = clean_text.find(normalized_query, start)
+                if pos == -1:
+                    break
+                occurrences.append(pos)
+                start = pos + 1
+
+        if not occurrences:
+            continue
+
+        verse_count += 1
+        total_in_verse = len(occurrences)
+
         hebrew_book = book_to_hebrew(row["book"])
         ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
-        hits.append(TextSearchHit(
-            ref=ref,
-            text=row["text"],
-            match_text=normalized_query,
-            book=row["book"],
-            chapter=row["chapter"],
-            verse=row["verse"]
-        ))
+
+        for idx, occ in enumerate(occurrences, 1):
+            all_hits.append(TextSearchHit(
+                ref=ref,
+                text=row["text"],
+                match_text=normalized_query,
+                book=row["book"],
+                chapter=row["chapter"],
+                verse=row["verse"],
+                occurrence=idx,
+                total_in_verse=total_in_verse
+            ))
 
     conn.close()
+
+    total_count = len(all_hits)
+
+    # Apply pagination after counting all occurrences
+    if limit is not None:
+        all_hits = all_hits[offset:offset + limit]
 
     return TextSearchResult(
         query=normalized_query,
         count=total_count,
-        hits=hits
+        verse_count=verse_count,
+        hits=all_hits
     )
 
 
