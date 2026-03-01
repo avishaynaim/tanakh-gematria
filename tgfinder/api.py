@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .search import search, book_to_hebrew, _BOOK_ORDER_CASE, _GBOOK_ORDER_CASE
-from .gematria import gematria, normalize_hebrew
+from .gematria import gematria, normalize_hebrew, atbash, atbash_gematria
 from .bootstrap_db import ensure_db
 from .db import connect
 
@@ -1074,3 +1074,102 @@ def api_kabbalah_search(
     results.sort(key=lambda x: x.count, reverse=True)
 
     return results
+
+
+# ============ Atbash (א״ת ב״ש) ============
+
+class AtbashResult(BaseModel):
+    original: str
+    atbash_text: str
+    original_gematria: int
+    atbash_gematria: int
+
+@app.get("/atbash", response_model=AtbashResult)
+def api_atbash(
+    text: str = Query(..., min_length=1, description="טקסט בעברית להמרה"),
+):
+    """Convert text using Atbash cipher and compute both gematria values."""
+    clean = normalize_hebrew(text)
+    if not clean.strip():
+        raise HTTPException(status_code=400, detail="נא להזין טקסט בעברית")
+    ab = atbash(text)
+    return AtbashResult(
+        original=clean,
+        atbash_text=ab,
+        original_gematria=gematria(text),
+        atbash_gematria=atbash_gematria(text),
+    )
+
+
+# ============ Top Words / N-grams ============
+
+class TopWordEntry(BaseModel):
+    rank: int
+    text: str
+    count: int
+    gematria: int
+
+class TopWordsResult(BaseModel):
+    n: int
+    total_unique: int
+    entries: List[TopWordEntry]
+
+@app.get("/top-words", response_model=TopWordsResult)
+def api_top_words(
+    n: int = Query(1, ge=1, le=5, description="גודל הצירוף (1=מילה בודדת, 2-5=צירוף מילים)"),
+    book: Optional[str] = Query(None, description="שם הספר לסינון (אנגלית)"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    limit: int = Query(500, ge=1, le=1000, description="מספר תוצאות"),
+    db: str = Query(default=None),
+):
+    """
+    Return the most frequent words or n-gram phrases in the Tanakh,
+    optionally filtered by book(s).
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    book_filter = books if books else ([book] if book else None)
+
+    where_clauses = ["n = ?"]
+    params_list: list = [n]
+
+    if book_filter:
+        placeholders = ",".join(["?"] * len(book_filter))
+        where_clauses.append(f"book IN ({placeholders})")
+        params_list.extend(book_filter)
+
+    where_sql = " AND ".join(where_clauses)
+
+    sql = f"""
+        SELECT clean_text, gematria, COUNT(*) as cnt
+        FROM grams
+        WHERE {where_sql}
+        GROUP BY clean_text
+        ORDER BY cnt DESC
+        LIMIT ?
+    """
+    params_list.append(limit)
+
+    cur = conn.execute(sql, tuple(params_list))
+    rows = cur.fetchall()
+
+    # Also get total unique count
+    count_sql = f"""
+        SELECT COUNT(DISTINCT clean_text) as total
+        FROM grams
+        WHERE {where_sql}
+    """
+    count_params = [n]
+    if book_filter:
+        count_params.extend(book_filter)
+    total_unique = conn.execute(count_sql, tuple(count_params)).fetchone()["total"]
+
+    conn.close()
+
+    entries = [
+        TopWordEntry(rank=i + 1, text=r["clean_text"], count=r["cnt"], gematria=r["gematria"])
+        for i, r in enumerate(rows)
+    ]
+
+    return TopWordsResult(n=n, total_unique=total_unique, entries=entries)

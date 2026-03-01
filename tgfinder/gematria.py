@@ -43,3 +43,17 @@ def gematria(text: str) -> int:
             continue
         total += _GEMATRIA.get(ch, 0)
     return total
+
+_ATBASH_MAP = str.maketrans(
+    'אבגדהוזחטיכלמנסעפצקרשת',
+    'תשרקצפעסנמלכיטחזופהדגבא'
+)
+
+def atbash(text: str) -> str:
+    """Convert text using Atbash cipher (א↔ת, ב↔ש, ...)."""
+    t = normalize_hebrew(text)
+    return t.translate(_ATBASH_MAP)
+
+def atbash_gematria(text: str) -> int:
+    """Calculate gematria of Atbash-transformed text."""
+    return gematria(atbash(text))

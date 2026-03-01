@@ -97,7 +97,7 @@
   </style>
 </head>
 <body>
-<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.6</span></h1></header>
+<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.7</span></h1></header>
 <main>
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
@@ -109,6 +109,8 @@
     <div class="tab" data-tab="letterSearch">🔤 אות פותחת/סוגרת</div>
     <div class="tab" data-tab="kabbalah">✡️ מושגי קבלה</div>
     <div class="tab" data-tab="textSearch">📝 חיפוש בטקסט</div>
+    <div class="tab" data-tab="atbash">🔄 א״ת ב״ש</div>
+    <div class="tab" data-tab="topWords">🏆 מילים נפוצות</div>
   </div>
 
   <!-- Search -->
@@ -410,6 +412,88 @@
       <div id="tsResults" class="results"></div>
     </div>
   </div>
+
+  <!-- Atbash -->
+  <div id="atbashTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">🔄 א״ת ב״ש — צופן אתב״ש</h3>
+      <p class="hint" style="margin-bottom:12px">הזן טקסט בעברית כדי להמיר לאתב״ש (א↔ת, ב↔ש, ג↔ר...) ולחשב גימטריה. ניתן לחפש בתנ״ך לפי ערך הגימטריה של האתב״ש.</p>
+      <div class="row">
+        <div>
+          <label>טקסט בעברית</label>
+          <input id="abInput" type="text" placeholder="אמת" style="width:200px">
+        </div>
+        <div><label>&nbsp;</label><button id="abBtn">המר</button></div>
+        <div><label>&nbsp;</label><button id="abSearchBtn" class="secondary" style="display:none">חפש בתנ״ך</button></div>
+      </div>
+      <div id="abErr" class="error" style="display:none"></div>
+    </div>
+    <div id="abResult" class="card" style="display:none">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:12px">
+        <div style="text-align:center;flex:1;min-width:120px">
+          <div class="meta">טקסט מקורי</div>
+          <div id="abOriginal" style="font-size:28px;font-weight:700;color:#111827"></div>
+          <div id="abOrigGem" class="meta"></div>
+        </div>
+        <div style="font-size:28px;color:#6b7280">⟷</div>
+        <div style="text-align:center;flex:1;min-width:120px">
+          <div class="meta">אתב״ש</div>
+          <div id="abAtbash" style="font-size:28px;font-weight:700;color:#2563eb"></div>
+          <div id="abAtbashGem" class="meta"></div>
+        </div>
+      </div>
+      <div style="background:#f0f4ff;border-radius:8px;padding:10px;text-align:center">
+        <table style="margin:0 auto;font-size:13px;border-collapse:collapse">
+          <tr style="color:#6b7280"><td style="padding:4px 6px">א</td><td style="padding:4px 6px">ב</td><td style="padding:4px 6px">ג</td><td style="padding:4px 6px">ד</td><td style="padding:4px 6px">ה</td><td style="padding:4px 6px">ו</td><td style="padding:4px 6px">ז</td><td style="padding:4px 6px">ח</td><td style="padding:4px 6px">ט</td><td style="padding:4px 6px">י</td><td style="padding:4px 6px">כ</td></tr>
+          <tr style="color:#2563eb;font-weight:600"><td style="padding:4px 6px">ת</td><td style="padding:4px 6px">ש</td><td style="padding:4px 6px">ר</td><td style="padding:4px 6px">ק</td><td style="padding:4px 6px">צ</td><td style="padding:4px 6px">פ</td><td style="padding:4px 6px">ע</td><td style="padding:4px 6px">ס</td><td style="padding:4px 6px">נ</td><td style="padding:4px 6px">מ</td><td style="padding:4px 6px">ל</td></tr>
+        </table>
+      </div>
+    </div>
+    <div id="abSearchResults" class="card" style="display:none">
+      <div class="meta" id="abSearchStatus"></div>
+      <div class="results" id="abSearchHits"></div>
+    </div>
+  </div>
+
+  <!-- Top Words -->
+  <div id="topWordsTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">🏆 מילים וצירופים נפוצים בתנ״ך</h3>
+      <p class="hint" style="margin-bottom:12px">הצגת המילים או צירופי המילים הנפוצים ביותר, עם אפשרות לסנן לפי ספר.</p>
+      <div class="row">
+        <div>
+          <label>גודל צירוף</label>
+          <select id="twN">
+            <option value="1">מילה בודדת (1)</option>
+            <option value="2">2 מילים</option>
+            <option value="3">3 מילים</option>
+            <option value="4">4 מילים</option>
+            <option value="5">5 מילים</option>
+          </select>
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="twBookSelect"></div>
+        </div>
+        <div>
+          <label>כמות תוצאות</label>
+          <select id="twLimit">
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500" selected>500</option>
+          </select>
+        </div>
+        <div><label>&nbsp;</label><button id="twBtn">הצג</button></div>
+      </div>
+      <div id="twErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="twStats" class="stats" style="display:none"></div>
+      <div id="twStatus" class="meta">בחר אפשרויות ולחץ "הצג"</div>
+      <div id="twResults" class="results"></div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Modal -->
@@ -1213,6 +1297,81 @@ async function doTextSearch(){
 $('tsBtn').onclick=doTextSearch;
 $('tsQuery').onkeydown=e=>{if(e.key==='Enter')doTextSearch();};
 
+// Atbash
+let abLastGem=null;
+async function doAtbash(){
+  const text=$('abInput').value.trim();
+  if(!text){$('abErr').textContent='הזן טקסט בעברית';$('abErr').style.display='block';return;}
+  $('abErr').style.display='none';
+  try{
+    const data=await(await fetch('/atbash?text='+encodeURIComponent(text))).json();
+    if(data.detail){$('abErr').textContent=data.detail;$('abErr').style.display='block';return;}
+    $('abOriginal').textContent=data.original;
+    $('abOrigGem').textContent='גימטריה: '+data.original_gematria;
+    $('abAtbash').textContent=data.atbash_text;
+    $('abAtbashGem').textContent='גימטריה: '+data.atbash_gematria;
+    $('abResult').style.display='block';
+    $('abSearchBtn').style.display='inline-block';
+    abLastGem=data.atbash_gematria;
+  }catch(e){$('abErr').textContent=e.message;$('abErr').style.display='block';}
+}
+async function doAtbashSearch(){
+  if(abLastGem===null)return;
+  $('abSearchBtn').disabled=true;$('abSearchStatus').textContent='מחפש ערך גימטריה '+abLastGem+'...';$('abSearchHits').innerHTML='';$('abSearchResults').style.display='block';
+  try{
+    const params=new URLSearchParams({value:abLastGem,limit:'200'});
+    const data=await(await fetch('/search?'+params)).json();
+    const kindHeb={verse:'פסוק',word:'מילה',gram:'צירוף'};
+    $('abSearchStatus').textContent='נמצאו '+data.length+' תוצאות עם גימטריה '+abLastGem;
+    $('abSearchHits').innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${kindHeb[h.kind]||h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
+  }catch(e){$('abSearchStatus').textContent='שגיאה: '+e.message;}
+  $('abSearchBtn').disabled=false;
+}
+$('abBtn').onclick=doAtbash;
+$('abSearchBtn').onclick=doAtbashSearch;
+$('abInput').onkeydown=e=>{if(e.key==='Enter')doAtbash();};
+
+// Top Words
+let twBookSelector;
+async function doTopWords(){
+  const n=parseInt($('twN').value);
+  const limit=parseInt($('twLimit').value);
+  const selectedBooks=twBookSelector?twBookSelector.getSelected():[];
+  $('twBtn').disabled=true;$('twStatus').textContent='טוען...';$('twResults').innerHTML='';$('twErr').style.display='none';$('twStats').style.display='none';
+  try{
+    const params=new URLSearchParams({n:n,limit:limit});
+    selectedBooks.forEach(b=>params.append('books',b));
+    const resp=await fetch('/top-words?'+params);
+    const data=await resp.json();
+    if(data.detail){$('twErr').textContent=data.detail;$('twErr').style.display='block';$('twBtn').disabled=false;return;}
+    const nLabel=n===1?'מילים בודדות':n+' מילים';
+    $('twStats').innerHTML=`
+      <div class="stat"><b>${data.total_unique.toLocaleString()}</b><span>${nLabel} ייחודיים</span></div>
+      <div class="stat"><b>${data.entries.length}</b><span>מוצגים</span></div>
+    `;
+    $('twStats').style.display='flex';
+    $('twStatus').textContent=`${data.entries.length} הנפוצים ביותר מתוך ${data.total_unique.toLocaleString()}`;
+    $('twResults').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:2px solid #e5e7eb;text-align:right">
+        <th style="padding:8px 6px;width:50px">#</th>
+        <th style="padding:8px 6px">מילה/צירוף</th>
+        <th style="padding:8px 6px;width:80px">מופעים</th>
+        <th style="padding:8px 6px;width:80px">גימטריה</th>
+      </tr></thead>
+      <tbody>${data.entries.map(e=>{
+        const barW=Math.round(e.count/data.entries[0].count*100);
+        return `<tr style="border-bottom:1px solid #f3f4f6;cursor:pointer" onclick="searchGem(${e.gematria},'${n===1?'word':'gram'}')">
+          <td style="padding:6px;color:#6b7280">${e.rank}</td>
+          <td style="padding:6px;font-weight:600"><div style="position:relative"><div style="position:absolute;top:0;right:0;bottom:0;width:${barW}%;background:#eff6ff;border-radius:4px;z-index:0"></div><span style="position:relative;z-index:1">${e.text}</span></div></td>
+          <td style="padding:6px;color:#2563eb;font-weight:600">${e.count.toLocaleString()}</td>
+          <td style="padding:6px;color:#6b7280">${e.gematria}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  }catch(e){$('twErr').textContent=e.message;$('twErr').style.display='block';}
+  $('twBtn').disabled=false;
+}
+$('twBtn').onclick=doTopWords;
+
 // Initialize book selectors immediately
 function initBookSelectors(){
   console.log('Initializing book selectors...');
@@ -1221,7 +1380,8 @@ function initBookSelectors(){
   rtBookSelector=createBookSelector('rtBookSelect');
   elsBookSelector=createBookSelector('elsBookSelect');
   tsBookSelector=createBookSelector('tsBookSelect');
-  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector});
+  twBookSelector=createBookSelector('twBookSelect');
+  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector,twBookSelector});
 }
 
 // Try to initialize immediately if DOM is ready
