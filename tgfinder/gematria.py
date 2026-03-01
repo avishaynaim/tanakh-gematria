@@ -46,7 +46,7 @@ def gematria(text: str) -> int:
 
 _ATBASH_MAP = str.maketrans(
     'אבגדהוזחטיכלמנסעפצקרשת',
-    'תשרקצפעסנמלכיטחזופהדגבא'
+    'תשרקצפעסנמלכיטחזוהדגבא',
 )
 
 def atbash(text: str) -> str:
