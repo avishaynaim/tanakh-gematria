@@ -423,8 +423,7 @@
           <label>טקסט בעברית</label>
           <input id="abInput" type="text" placeholder="אמת" style="width:200px">
         </div>
-        <div><label>&nbsp;</label><button id="abBtn">המר</button></div>
-        <div><label>&nbsp;</label><button id="abSearchBtn" class="secondary" style="display:none">חפש בתנ״ך</button></div>
+        <div><label>&nbsp;</label><button id="abBtn">המר וחפש</button></div>
       </div>
       <div id="abErr" class="error" style="display:none"></div>
     </div>
@@ -1298,37 +1297,49 @@ $('tsBtn').onclick=doTextSearch;
 $('tsQuery').onkeydown=e=>{if(e.key==='Enter')doTextSearch();};
 
 // Atbash
-let abLastGem=null;
+let abLastWord=null;
 async function doAtbash(){
   const text=$('abInput').value.trim();
   if(!text){$('abErr').textContent='הזן טקסט בעברית';$('abErr').style.display='block';return;}
-  $('abErr').style.display='none';
+  $('abErr').style.display='none';$('abBtn').disabled=true;
   try{
     const data=await(await fetch('/atbash?text='+encodeURIComponent(text))).json();
-    if(data.detail){$('abErr').textContent=data.detail;$('abErr').style.display='block';return;}
+    if(data.detail){$('abErr').textContent=data.detail;$('abErr').style.display='block';$('abBtn').disabled=false;return;}
     $('abOriginal').textContent=data.original;
     $('abOrigGem').textContent='גימטריה: '+data.original_gematria;
     $('abAtbash').textContent=data.atbash_text;
     $('abAtbashGem').textContent='גימטריה: '+data.atbash_gematria;
     $('abResult').style.display='block';
-    $('abSearchBtn').style.display='inline-block';
-    abLastGem=data.atbash_gematria;
+    abLastWord=data.atbash_text;
+    // Automatically search for the Atbash word in Tanakh
+    $('abSearchResults').style.display='block';
+    $('abSearchStatus').textContent='מחפש את "'+data.atbash_text+'" בתנ״ך...';
+    $('abSearchHits').innerHTML='';
+    const q=data.atbash_text.replace(/ /g,'');
+    const params=new URLSearchParams({q:q,mode:'partial',limit:'500'});
+    const resp=await fetch('/text-search?'+params);
+    const searchData=await resp.json();
+    if(searchData.detail){
+      $('abSearchStatus').textContent='לא נמצאו תוצאות';
+    }else if(searchData.count===0){
+      $('abSearchStatus').textContent='המילה "'+data.atbash_text+'" לא נמצאה בתנ״ך ('+searchData.count+' מופעים)';
+    }else{
+      $('abSearchStatus').textContent='נמצאו '+searchData.count.toLocaleString()+' מופעים של "'+data.atbash_text+'" בתנ״ך ('+searchData.verse_count+' פסוקים)';
+      const letters=q.split('');
+      const pattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
+      $('abSearchHits').innerHTML=searchData.hits.map(hit=>{
+        const regex=new RegExp(pattern,'g');
+        const highlighted=hit.text.replace(regex,m=>`<mark>${m}</mark>`);
+        return `<div class="hit">
+          <div><span class="ref">${hit.ref}</span></div>
+          <div class="text">${highlighted}</div>
+        </div>`;
+      }).join('');
+    }
   }catch(e){$('abErr').textContent=e.message;$('abErr').style.display='block';}
-}
-async function doAtbashSearch(){
-  if(abLastGem===null)return;
-  $('abSearchBtn').disabled=true;$('abSearchStatus').textContent='מחפש ערך גימטריה '+abLastGem+'...';$('abSearchHits').innerHTML='';$('abSearchResults').style.display='block';
-  try{
-    const params=new URLSearchParams({value:abLastGem,limit:'200'});
-    const data=await(await fetch('/search?'+params)).json();
-    const kindHeb={verse:'פסוק',word:'מילה',gram:'צירוף'};
-    $('abSearchStatus').textContent='נמצאו '+data.length+' תוצאות עם גימטריה '+abLastGem;
-    $('abSearchHits').innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${kindHeb[h.kind]||h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
-  }catch(e){$('abSearchStatus').textContent='שגיאה: '+e.message;}
-  $('abSearchBtn').disabled=false;
+  $('abBtn').disabled=false;
 }
 $('abBtn').onclick=doAtbash;
-$('abSearchBtn').onclick=doAtbashSearch;
 $('abInput').onkeydown=e=>{if(e.key==='Enter')doAtbash();};
 
 // Top Words
