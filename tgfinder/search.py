@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List, Literal, Optional, Dict, Any, Tuple
 
 from .db import connect
+from .gematria import normalize_hebrew
 
 Kind = Literal["verse", "word", "gram"]
 
@@ -72,14 +73,14 @@ def search(
                 ref=_ref(r["book"], r["chapter"], r["verse"]),
                 n=None,
                 text=r["text"],
-                clean_text=r["clean_text"],
+                clean_text=normalize_hebrew(r["text"]),
                 gematria=r["gematria"],
             ))
 
     if kind in (None, "word", "gram"):
         base_sql = (
             "SELECT g.n,g.book,g.chapter,g.verse,g.start_word,g.end_word,g.text AS match_text,"
-            " v.text AS verse_text, v.clean_text AS verse_clean, g.gematria "
+            " v.text AS verse_text, g.gematria "
             "FROM grams g JOIN verses v "
             "ON v.book=g.book AND v.chapter=g.chapter AND v.verse=g.verse "
         )
@@ -128,7 +129,7 @@ def search(
                 ref=_ref(r["book"], r["chapter"], r["verse"]),
                 n=int(r["n"]),
                 text=r["verse_text"],
-                clean_text=r["verse_clean"],
+                clean_text=normalize_hebrew(r["verse_text"]),
                 gematria=int(r["gematria"]),
                 match_text=r["match_text"],
                 match_range=rng,

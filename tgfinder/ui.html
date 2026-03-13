@@ -1214,7 +1214,7 @@ async function doLetterSearch(){
       $('lsStatus').textContent=`נמצאו ${data.count.toLocaleString()} פסוקים שמתחילים ב-${data.start_letter} ומסתיימים ב-${data.end_letter}`;
       $('lsResults').innerHTML=data.matches.map(m=>{
         // Highlight first and last letters
-        const words=m.verse_text.split(' ');
+        const words=m.verse_text.split(/[\s\u05BE]+/);
         if(words.length>0){
           const first=words[0];
           const last=words[words.length-1];

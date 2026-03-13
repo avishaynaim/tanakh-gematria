@@ -16,6 +16,11 @@ from .bootstrap_db import ensure_db
 from .db import connect
 
 
+def _clean(row) -> str:
+    """Re-normalize from original text to fix DB maqaf bug (words joined instead of split)."""
+    return normalize_hebrew(row["text"])
+
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from .bootstrap_db import ensure_db
@@ -461,8 +466,8 @@ def api_roshei_tevot(
             if valid and normalize_sofit(letters) == normalized_search:
                 hebrew_book = book_to_hebrew(row["book"])
                 ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
-                # Get original words with nikud
-                orig_words = verse_text.split()
+                # Get original words with nikud (split on spaces AND maqaf)
+                orig_words = re.split(r'[\s\u05BE]+', verse_text)
                 if reverse:
                     orig_words = orig_words[::-1]
                 match_words = orig_words[i:i + word_len] if i + word_len <= len(orig_words) else window_words
@@ -563,8 +568,8 @@ def api_els(
         clean_to_full = []  # Maps each clean char index to its full text index
 
         for row in cur:
-            clean_text = row["clean_text"].replace(" ", "")
-            full_text = row["text"].replace(" ", "")  # Full text with nikud, no spaces
+            clean_text = _clean(row).replace(" ", "")
+            full_text = row["text"].replace("־", "").replace(" ", "")  # Full text with nikud, no spaces/maqaf
             hebrew_book = book_to_hebrew(row["book"])
             ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
 
@@ -725,22 +730,21 @@ def api_text_search(
     if not normalized_query:
         raise HTTPException(status_code=400, detail="נא להזין טקסט בעברית")
 
-    # Build SQL query with LIKE for partial matching
-    where_clauses = ["clean_text LIKE ?"]
-    params_list = [f"%{normalized_query}%"]
+    # Fetch all verses (re-normalize in Python to fix DB maqaf bug)
+    where_clauses = []
+    params_list = []
 
     if books:
         placeholders = ",".join(["?"] * len(books))
         where_clauses.append(f"book IN ({placeholders})")
         params_list.extend(books)
 
-    where_sql = " AND ".join(where_clauses)
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
-    # Build main query with ordering
     sql = f"""
-        SELECT book, chapter, verse, text, clean_text
+        SELECT book, chapter, verse, text
         FROM verses
-        WHERE {where_sql}
+        {where_sql}
         ORDER BY {_BOOK_ORDER_CASE}, chapter, verse
     """
 
@@ -749,7 +753,7 @@ def api_text_search(
     verse_count = 0
 
     for row in cur:
-        clean_text = row["clean_text"]
+        clean_text = _clean(row)
 
         # Find all occurrences in this verse
         if mode == "full":
@@ -869,7 +873,7 @@ def api_letter_search(
     matches = []
 
     for row in cur:
-        clean_text = row["clean_text"]
+        clean_text = _clean(row)
         words = clean_text.split()
         if reverse:
             words = words[::-1]
@@ -1220,7 +1224,7 @@ def api_repeated_words(
     matches = []
 
     for row in cur:
-        clean_text = row["clean_text"]
+        clean_text = _clean(row)
         words = clean_text.split()
         if len(words) < min_repeat:
             continue
@@ -1305,7 +1309,7 @@ def api_similar_sequence(
     matches = []
 
     for row in cur:
-        clean_text = row["clean_text"]
+        clean_text = _clean(row)
         words = clean_text.split()
         if len(words) < min_length:
             continue
