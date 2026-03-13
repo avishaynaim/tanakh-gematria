@@ -1251,3 +1251,103 @@ def api_repeated_words(
         total_matches=len(matches),
         matches=matches,
     )
+
+
+# ============ Similar Words Sequences ============
+
+def _common_letters(a: str, b: str) -> set:
+    """Return the set of Hebrew letters shared between two words."""
+    return set(a) & set(b)
+
+class SimilarSequenceMatch(BaseModel):
+    ref: str
+    verse_text: str
+    words: List[str]          # The consecutive similar words
+    common_letters: List[str] # Shared letters between each adjacent pair
+    start_word_idx: int
+    length: int
+
+class SimilarSequenceResult(BaseModel):
+    min_common: int
+    min_length: int
+    total_matches: int
+    matches: List[SimilarSequenceMatch]
+
+@app.get("/similar-sequence", response_model=SimilarSequenceResult)
+def api_similar_sequence(
+    min_common: int = Query(2, ge=2, le=5, description="מינימום אותיות משותפות בין מילים סמוכות"),
+    min_length: int = Query(2, ge=2, le=10, description="מינימום מילים ברצף"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    db: str = Query(default=None),
+):
+    """
+    Find sequences of consecutive words that share at least min_common
+    unique Hebrew letters between each adjacent pair.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    where_clause = ""
+    params_list = []
+    if books:
+        placeholders = ",".join(["?"] * len(books))
+        where_clause = f"WHERE book IN ({placeholders})"
+        params_list.extend(books)
+
+    sql = f"""
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        {where_clause}
+        ORDER BY {_BOOK_ORDER_CASE}, chapter, verse
+    """
+
+    cur = conn.execute(sql, tuple(params_list))
+    matches = []
+
+    for row in cur:
+        clean_text = row["clean_text"]
+        words = clean_text.split()
+        if len(words) < min_length:
+            continue
+
+        # Find sequences of consecutive similar words
+        i = 0
+        while i < len(words) - 1:
+            shared = _common_letters(words[i], words[i + 1])
+            if len(shared) >= min_common:
+                # Start a sequence
+                seq_start = i
+                pair_commons = ["".join(sorted(shared))]
+                j = i + 1
+                while j < len(words) - 1:
+                    shared_next = _common_letters(words[j], words[j + 1])
+                    if len(shared_next) >= min_common:
+                        pair_commons.append("".join(sorted(shared_next)))
+                        j += 1
+                    else:
+                        break
+                seq_end = j  # inclusive
+                seq_len = seq_end - seq_start + 1
+                if seq_len >= min_length:
+                    hebrew_book = book_to_hebrew(row["book"])
+                    ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+                    matches.append(SimilarSequenceMatch(
+                        ref=ref,
+                        verse_text=row["text"],
+                        words=words[seq_start:seq_end + 1],
+                        common_letters=pair_commons,
+                        start_word_idx=seq_start,
+                        length=seq_len,
+                    ))
+                i = j + 1
+            else:
+                i += 1
+
+    conn.close()
+
+    return SimilarSequenceResult(
+        min_common=min_common,
+        min_length=min_length,
+        total_matches=len(matches),
+        matches=matches,
+    )

@@ -455,18 +455,51 @@
     </div>
   </div>
 
-  <!-- Repeated Words -->
+  <!-- Repeated / Similar Words -->
   <div id="repeatedWordsTab" class="tab-content">
     <div class="card no-top">
-      <h3 style="margin:0 0 12px;font-size:15px">🔁 חיפוש מילים חוזרות ברצף</h3>
-      <p class="hint" style="margin-bottom:12px">מצא מקומות בתנ״ך שבהם מילה זהה חוזרת ברצף (למשל: שלום שלום, קדוש קדוש קדוש).</p>
-      <div class="row">
+      <h3 style="margin:0 0 12px;font-size:15px">🔁 חיפוש מילים חוזרות / דומות ברצף</h3>
+      <div class="row" style="margin-bottom:10px">
         <div>
+          <label>מצב חיפוש</label>
+          <select id="rwMode" onchange="syncRwMode()">
+            <option value="identical">מילים זהות ברצף</option>
+            <option value="similar">מילים דומות ברצף (אותיות משותפות)</option>
+          </select>
+        </div>
+      </div>
+      <div id="rwIdenticalHint" class="hint" style="margin-bottom:10px">מצא מקומות שבהם מילה זהה חוזרת ברצף (למשל: שלום שלום, קדוש קדוש קדוש).</div>
+      <div id="rwSimilarHint" class="hint" style="margin-bottom:10px;display:none">מצא רצפי מילים סמוכות שחולקות אותיות משותפות (למשל: מילים עם לפחות 2 אותיות זהות).</div>
+      <div class="row">
+        <div id="rwMinWrap">
           <label>מינימום חזרות</label>
           <select id="rwMin">
             <option value="2" selected>2 (כפילות)</option>
             <option value="3">3 (משולשת)</option>
             <option value="4">4+</option>
+          </select>
+        </div>
+        <div id="rwCommonWrap" style="display:none">
+          <label>מינימום אותיות משותפות</label>
+          <select id="rwCommon">
+            <option value="2" selected>2 אותיות</option>
+            <option value="3">3 אותיות</option>
+            <option value="4">4 אותיות</option>
+            <option value="5">5 אותיות</option>
+          </select>
+        </div>
+        <div id="rwSeqLenWrap" style="display:none">
+          <label>מינימום מילים ברצף</label>
+          <select id="rwSeqLen">
+            <option value="2">2 מילים</option>
+            <option value="3">3 מילים</option>
+            <option value="4">4 מילים</option>
+            <option value="5">5 מילים</option>
+            <option value="6">6 מילים</option>
+            <option value="7">7 מילים</option>
+            <option value="8">8 מילים</option>
+            <option value="9">9 מילים</option>
+            <option value="10">10 מילים</option>
           </select>
         </div>
         <div>
@@ -1413,49 +1446,102 @@ async function doTopWords(){
 }
 $('twBtn').onclick=doTopWords;
 
-// Repeated Words Search
+// Repeated / Similar Words Search
 let rwBookSelector;
+function syncRwMode(){
+  const mode=$('rwMode').value;
+  $('rwMinWrap').style.display=mode==='identical'?'':'none';
+  $('rwCommonWrap').style.display=mode==='similar'?'':'none';
+  $('rwSeqLenWrap').style.display=mode==='similar'?'':'none';
+  $('rwIdenticalHint').style.display=mode==='identical'?'':'none';
+  $('rwSimilarHint').style.display=mode==='similar'?'':'none';
+}
+
 async function doRepeatedWords(){
-  const minRepeat=parseInt($('rwMin').value)||2;
+  const mode=$('rwMode').value;
   const selectedBooks=rwBookSelector?rwBookSelector.getSelected():[];
   $('rwBtn').disabled=true;$('rwStatus').textContent='מחפש...';$('rwResults').innerHTML='';$('rwErr').style.display='none';$('rwStats').style.display='none';
+
   try{
-    const params=new URLSearchParams({min_repeat:minRepeat});
-    selectedBooks.forEach(b=>params.append('books',b));
-    const resp=await fetch('/repeated-words?'+params);
-    const data=await resp.json();
-    if(data.detail){$('rwErr').textContent=data.detail;$('rwErr').style.display='block';$('rwBtn').disabled=false;return;}
+    if(mode==='identical'){
+      const minRepeat=parseInt($('rwMin').value)||2;
+      const params=new URLSearchParams({min_repeat:minRepeat});
+      selectedBooks.forEach(b=>params.append('books',b));
+      const resp=await fetch('/repeated-words?'+params);
+      const data=await resp.json();
+      if(data.detail){$('rwErr').textContent=data.detail;$('rwErr').style.display='block';$('rwBtn').disabled=false;return;}
 
-    const repeatLabel=minRepeat===2?'כפילויות':minRepeat===3?'משולשות':minRepeat+' חזרות';
-    $('rwStats').innerHTML=`
-      <div class="stat"><b>${data.total_matches.toLocaleString()}</b><span>תוצאות</span></div>
-      <div class="stat"><b>${repeatLabel}</b><span>מינימום חזרות</span></div>
-    `;
-    $('rwStats').style.display='flex';
+      const repeatLabel=minRepeat===2?'כפילויות':minRepeat===3?'משולשות':minRepeat+' חזרות';
+      $('rwStats').innerHTML=`
+        <div class="stat"><b>${data.total_matches.toLocaleString()}</b><span>תוצאות</span></div>
+        <div class="stat"><b>${repeatLabel}</b><span>מינימום חזרות</span></div>
+      `;
+      $('rwStats').style.display='flex';
 
-    if(data.total_matches===0){
-      $('rwStatus').textContent='לא נמצאו מילים חוזרות ברצף';
+      if(data.total_matches===0){
+        $('rwStatus').textContent='לא נמצאו מילים חוזרות ברצף';
+      }else{
+        $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפים של מילים חוזרות`;
+        $('rwResults').innerHTML=data.matches.map(m=>{
+          const letters=m.word.split('');
+          const singleWordPattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
+          const fullPattern=Array(m.count).fill(singleWordPattern).join('[\\s\u05BE]+');
+          const regex=new RegExp(fullPattern,'g');
+          const highlighted=m.verse_text.replace(regex,match=>`<mark>${match}</mark>`);
+          const countLabel=m.count===2?'כפילות':m.count===3?'משולשת':m.count+' חזרות';
+          return `<div class="hit">
+            <div><span class="ref">${m.ref}</span><span class="pill">${m.word} × ${m.count}</span><span class="pill">${countLabel}</span></div>
+            <div class="text">${highlighted}</div>
+          </div>`;
+        }).join('');
+      }
     }else{
-      $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפים של מילים חוזרות`;
-      $('rwResults').innerHTML=data.matches.map(m=>{
-        // Highlight repeated words in the verse text
-        const repeatedPhrase=Array(m.count).fill(m.word).join(' ');
-        // Build regex that matches the word with optional nikud between letters
-        const letters=m.word.split('');
-        const singleWordPattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
-        // Match m.count consecutive copies separated by spaces/maqaf
-        const fullPattern=Array(m.count).fill(singleWordPattern).join('[\\s\u05BE]+');
-        const regex=new RegExp(fullPattern,'g');
-        const highlighted=m.verse_text.replace(regex,match=>`<mark>${match}</mark>`);
-        const countLabel=m.count===2?'כפילות':m.count===3?'משולשת':m.count+' חזרות';
-        return `<div class="hit">
-          <div><span class="ref">${m.ref}</span><span class="pill">${m.word} × ${m.count}</span><span class="pill">${countLabel}</span></div>
-          <div class="text">${highlighted}</div>
-        </div>`;
-      }).join('');
+      // Similar words mode
+      const minCommon=parseInt($('rwCommon').value)||2;
+      const minLength=parseInt($('rwSeqLen').value)||2;
+      const params=new URLSearchParams({min_common:minCommon,min_length:minLength});
+      selectedBooks.forEach(b=>params.append('books',b));
+      const resp=await fetch('/similar-sequence?'+params);
+      const data=await resp.json();
+      if(data.detail){$('rwErr').textContent=data.detail;$('rwErr').style.display='block';$('rwBtn').disabled=false;return;}
+
+      $('rwStats').innerHTML=`
+        <div class="stat"><b>${data.total_matches.toLocaleString()}</b><span>רצפים</span></div>
+        <div class="stat"><b>${minCommon}</b><span>מינימום אותיות משותפות</span></div>
+        <div class="stat"><b>${minLength}+</b><span>מילים ברצף</span></div>
+      `;
+      $('rwStats').style.display='flex';
+
+      if(data.total_matches===0){
+        $('rwStatus').textContent='לא נמצאו רצפי מילים דומות';
+      }else{
+        $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפי מילים דומות`;
+        $('rwResults').innerHTML=data.matches.map(m=>{
+          // Build pills for each word in the sequence
+          const wordPills=m.words.map(w=>`<span class="pill" style="font-size:13px">${w}</span>`).join(' ');
+          // Show common letters between pairs
+          const pairInfo=m.common_letters.map((cl,idx)=>{
+            return `<span style="font-size:11px;color:#6b7280">${m.words[idx]}↔${m.words[idx+1]}: <b>${cl}</b></span>`;
+          }).join(' | ');
+          // Highlight the similar words in verse text
+          let highlighted=m.verse_text;
+          for(const w of m.words){
+            const letters=w.split('');
+            const pat=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
+            const regex=new RegExp('(?<=[\\s\u05BE]|^)'+pat+'(?=[\\s\u05BE]|$)','g');
+            highlighted=highlighted.replace(regex,match=>`<mark>${match}</mark>`);
+          }
+          return `<div class="hit">
+            <div><span class="ref">${m.ref}</span><span class="pill">${m.length} מילים</span></div>
+            <div style="margin:6px 0">${wordPills}</div>
+            <div class="text">${highlighted}</div>
+            <div class="meta" style="margin-top:6px">אותיות משותפות: ${pairInfo}</div>
+          </div>`;
+        }).join('');
+      }
     }
   }catch(e){
-    console.error('Repeated words error:',e);
+    console.error('Repeated/similar words error:',e);
     $('rwErr').textContent=e.message||'שגיאה';$('rwErr').style.display='block';
   }
   $('rwBtn').disabled=false;
