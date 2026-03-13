@@ -1173,3 +1173,81 @@ def api_top_words(
     ]
 
     return TopWordsResult(n=n, total_unique=total_unique, entries=entries)
+
+
+# ============ Repeated Words (consecutive identical words) ============
+
+class RepeatedWordMatch(BaseModel):
+    ref: str
+    verse_text: str
+    word: str
+    count: int  # How many times the word repeats consecutively
+    start_word_idx: int
+
+class RepeatedWordsResult(BaseModel):
+    min_repeat: int
+    total_matches: int
+    matches: List[RepeatedWordMatch]
+
+@app.get("/repeated-words", response_model=RepeatedWordsResult)
+def api_repeated_words(
+    min_repeat: int = Query(2, ge=2, le=20, description="מינימום חזרות רצופות"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    db: str = Query(default=None),
+):
+    """
+    Find sequences of identical consecutive words in the Tanakh.
+    For example: שלום שלום, קדוש קדוש קדוש, etc.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    where_clause = ""
+    params_list = []
+    if books:
+        placeholders = ",".join(["?"] * len(books))
+        where_clause = f"WHERE book IN ({placeholders})"
+        params_list.extend(books)
+
+    sql = f"""
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        {where_clause}
+        ORDER BY {_BOOK_ORDER_CASE}, chapter, verse
+    """
+
+    cur = conn.execute(sql, tuple(params_list))
+    matches = []
+
+    for row in cur:
+        clean_text = row["clean_text"]
+        words = clean_text.split()
+        if len(words) < min_repeat:
+            continue
+
+        i = 0
+        while i < len(words):
+            # Count consecutive identical words starting at i
+            j = i + 1
+            while j < len(words) and words[j] == words[i]:
+                j += 1
+            repeat_count = j - i
+            if repeat_count >= min_repeat:
+                hebrew_book = book_to_hebrew(row["book"])
+                ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+                matches.append(RepeatedWordMatch(
+                    ref=ref,
+                    verse_text=row["text"],
+                    word=words[i],
+                    count=repeat_count,
+                    start_word_idx=i,
+                ))
+            i = j
+
+    conn.close()
+
+    return RepeatedWordsResult(
+        min_repeat=min_repeat,
+        total_matches=len(matches),
+        matches=matches,
+    )

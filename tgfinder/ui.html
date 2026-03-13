@@ -111,6 +111,7 @@
     <div class="tab" data-tab="textSearch">📝 חיפוש בטקסט</div>
     <div class="tab" data-tab="atbash">🔄 א״ת ב״ש</div>
     <div class="tab" data-tab="topWords">🏆 מילים נפוצות</div>
+    <div class="tab" data-tab="repeatedWords">🔁 מילים חוזרות</div>
   </div>
 
   <!-- Search -->
@@ -451,6 +452,35 @@
     <div id="abSearchResults" class="card" style="display:none">
       <div class="meta" id="abSearchStatus"></div>
       <div class="results" id="abSearchHits"></div>
+    </div>
+  </div>
+
+  <!-- Repeated Words -->
+  <div id="repeatedWordsTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">🔁 חיפוש מילים חוזרות ברצף</h3>
+      <p class="hint" style="margin-bottom:12px">מצא מקומות בתנ״ך שבהם מילה זהה חוזרת ברצף (למשל: שלום שלום, קדוש קדוש קדוש).</p>
+      <div class="row">
+        <div>
+          <label>מינימום חזרות</label>
+          <select id="rwMin">
+            <option value="2" selected>2 (כפילות)</option>
+            <option value="3">3 (משולשת)</option>
+            <option value="4">4+</option>
+          </select>
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="rwBookSelect"></div>
+        </div>
+        <div><label>&nbsp;</label><button id="rwBtn">חפש</button></div>
+      </div>
+      <div id="rwErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="rwStats" class="stats" style="display:none"></div>
+      <div id="rwStatus" class="meta">בחר אפשרויות ולחץ "חפש"</div>
+      <div id="rwResults" class="results"></div>
     </div>
   </div>
 
@@ -1383,6 +1413,55 @@ async function doTopWords(){
 }
 $('twBtn').onclick=doTopWords;
 
+// Repeated Words Search
+let rwBookSelector;
+async function doRepeatedWords(){
+  const minRepeat=parseInt($('rwMin').value)||2;
+  const selectedBooks=rwBookSelector?rwBookSelector.getSelected():[];
+  $('rwBtn').disabled=true;$('rwStatus').textContent='מחפש...';$('rwResults').innerHTML='';$('rwErr').style.display='none';$('rwStats').style.display='none';
+  try{
+    const params=new URLSearchParams({min_repeat:minRepeat});
+    selectedBooks.forEach(b=>params.append('books',b));
+    const resp=await fetch('/repeated-words?'+params);
+    const data=await resp.json();
+    if(data.detail){$('rwErr').textContent=data.detail;$('rwErr').style.display='block';$('rwBtn').disabled=false;return;}
+
+    const repeatLabel=minRepeat===2?'כפילויות':minRepeat===3?'משולשות':minRepeat+' חזרות';
+    $('rwStats').innerHTML=`
+      <div class="stat"><b>${data.total_matches.toLocaleString()}</b><span>תוצאות</span></div>
+      <div class="stat"><b>${repeatLabel}</b><span>מינימום חזרות</span></div>
+    `;
+    $('rwStats').style.display='flex';
+
+    if(data.total_matches===0){
+      $('rwStatus').textContent='לא נמצאו מילים חוזרות ברצף';
+    }else{
+      $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפים של מילים חוזרות`;
+      $('rwResults').innerHTML=data.matches.map(m=>{
+        // Highlight repeated words in the verse text
+        const repeatedPhrase=Array(m.count).fill(m.word).join(' ');
+        // Build regex that matches the word with optional nikud between letters
+        const letters=m.word.split('');
+        const singleWordPattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
+        // Match m.count consecutive copies separated by spaces/maqaf
+        const fullPattern=Array(m.count).fill(singleWordPattern).join('[\\s\u05BE]+');
+        const regex=new RegExp(fullPattern,'g');
+        const highlighted=m.verse_text.replace(regex,match=>`<mark>${match}</mark>`);
+        const countLabel=m.count===2?'כפילות':m.count===3?'משולשת':m.count+' חזרות';
+        return `<div class="hit">
+          <div><span class="ref">${m.ref}</span><span class="pill">${m.word} × ${m.count}</span><span class="pill">${countLabel}</span></div>
+          <div class="text">${highlighted}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    console.error('Repeated words error:',e);
+    $('rwErr').textContent=e.message||'שגיאה';$('rwErr').style.display='block';
+  }
+  $('rwBtn').disabled=false;
+}
+$('rwBtn').onclick=doRepeatedWords;
+
 // Initialize book selectors immediately
 function initBookSelectors(){
   console.log('Initializing book selectors...');
@@ -1392,7 +1471,8 @@ function initBookSelectors(){
   elsBookSelector=createBookSelector('elsBookSelect');
   tsBookSelector=createBookSelector('tsBookSelect');
   twBookSelector=createBookSelector('twBookSelect');
-  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector,twBookSelector});
+  rwBookSelector=createBookSelector('rwBookSelect');
+  console.log('Book selectors initialized:',{bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector,twBookSelector,rwBookSelector});
 }
 
 // Try to initialize immediately if DOM is ready
