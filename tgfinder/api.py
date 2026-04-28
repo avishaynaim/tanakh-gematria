@@ -1259,6 +1259,109 @@ def api_repeated_words(
 
 # ============ Similar Words Sequences ============
 
+# ============ Same Initial Letter Runs ============
+
+class SameInitialRun(BaseModel):
+    ref: str
+    verse_text: str
+    run_words: List[str]
+    letter: str
+    run_length: int
+
+class SameInitialRunsResult(BaseModel):
+    letter: str
+    min_length: int
+    max_length: int
+    total_runs: int
+    runs: List[SameInitialRun]
+
+@app.get("/same-initial-runs", response_model=SameInitialRunsResult)
+def api_same_initial_runs(
+    letter: str = Query(..., min_length=1, max_length=1, description="אות ראשונה לחיפוש (למשל א, ב, ג...)"),
+    min_len: int = Query(3, ge=2, le=10, description="אורך מינימלי רצף (2-10)"),
+    max_len: int = Query(8, ge=2, le=20, description="אורך מקסימלי רצף (2-20)"),
+    books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
+    db: str = Query(default=None),
+):
+    """
+    Search for consecutive runs of words where each word starts with the same letter.
+    For each verse, finds all sequences of ≥min_len consecutive words sharing the same first letter.
+    """
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    where_clause = ""
+    params_list = []
+    if books:
+        placeholders = ",".join(["?"] * len(books))
+        where_clause = f"WHERE book IN ({placeholders})"
+        params_list.extend(books)
+
+    sql = f"""
+        SELECT book, chapter, verse, text, clean_text
+        FROM verses
+        {where_clause}
+        ORDER BY 
+            CASE WHEN book='Genesis' THEN 1 WHEN book='Exodus' THEN 2 WHEN book='Leviticus' THEN 3
+            WHEN book='Numbers' THEN 4 WHEN book='Deuteronomy' THEN 5 WHEN book='Joshua' THEN 6
+            WHEN book='Judges' THEN 7 WHEN book='1 Samuel' THEN 8 WHEN book='2 Samuel' THEN 9
+            WHEN book='1 Kings' THEN 10 WHEN book='2 Kings' THEN 11 WHEN book='Isaiah' THEN 12
+            WHEN book='Jeremiah' THEN 13 WHEN book='Ezekiel' THEN 14 WHEN book='Hosea' THEN 15
+            WHEN book='Joel' THEN 16 WHEN book='Amos' THEN 17 WHEN book='Obadiah' THEN 18
+            WHEN book='Jonah' THEN 19 WHEN book='Micah' THEN 20 WHEN book='Nahum' THEN 21
+            WHEN book='Habakkuk' THEN 22 WHEN book='Zephaniah' THEN 23 WHEN book='Haggai' THEN 24
+            WHEN book='Zechariah' THEN 25 WHEN book='Malachi' THEN 26 WHEN book='Psalms' THEN 27
+            WHEN book='Proverbs' THEN 28 WHEN book='Job' THEN 29 WHEN book='Song of Songs' THEN 30
+            WHEN book='Ruth' THEN 31 WHEN book='Lamentations' THEN 32 WHEN book='Ecclesiastes' THEN 33
+            WHEN book='Esther' THEN 34 WHEN book='Daniel' THEN 35 WHEN book='Ezra' THEN 36
+            WHEN book='Nehemiah' THEN 37 WHEN book='1 Chronicles' THEN 38 WHEN book='2 Chronicles' THEN 39
+            ELSE 999 END, chapter, verse
+    """
+    
+    cur = conn.execute(sql, tuple(params_list))
+    matches = []
+    normalized_letter = normalize_sofit(letter.strip())
+
+    for row in cur:
+        clean_text = _clean(row)
+        words = clean_text.split()
+        
+        i = 0
+        while i < len(words):
+            if words[i] and normalize_sofit(words[i][0]) == normalized_letter:
+                run_start = i
+                j = i + 1
+                while j < len(words) and words[j] and normalize_sofit(words[j][0]) == normalized_letter:
+                    j += 1
+                run_len = j - run_start
+                if min_len <= run_len <= max_len:
+                    hebrew_book = book_to_hebrew(row["book"])
+                    ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+                    matches.append(SameInitialRun(
+                        ref=ref,
+                        verse_text=row["text"],
+                        run_words=words[run_start:j],
+                        letter=letter,
+                        run_length=run_len
+                    ))
+                i = j
+            else:
+                i += 1
+
+    conn.close()
+    matches.sort(key=lambda x: x.run_length, reverse=True)
+
+    return SameInitialRunsResult(
+        letter=letter,
+        min_length=min_len,
+        max_length=max_len,
+        total_runs=len(matches),
+        runs=matches
+    )
+
+
+
+
 def _common_letters(a: str, b: str) -> set:
     """Return the set of Hebrew letters shared between two words."""
     return set(a) & set(b)

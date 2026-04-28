@@ -107,6 +107,7 @@
     <div class="tab" data-tab="roshei">א״ת ראשי/סופי</div>
     <div class="tab" data-tab="els">דילוג אותיות</div>
     <div class="tab" data-tab="letterSearch">🔤 אות פותחת/סוגרת</div>
+     <div class="tab" data-tab="sameInitialRuns">🔤 רצפי אות ראשונה</div>
     <div class="tab" data-tab="kabbalah">✡️ מושגי קבלה</div>
     <div class="tab" data-tab="textSearch">📝 חיפוש בטקסט</div>
     <div class="tab" data-tab="atbash">🔄 א״ת ב״ש</div>
@@ -347,6 +348,56 @@
       <div id="lsResults" class="results"></div>
     </div>
   </div>
+
+
+  <!-- Same Initial Letter Runs -->
+  <div id="sameInitialRunsTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">🔤 מילים עם אות ראשונה–
+
+      <p class="hint" style="margin-bottom:12px">מצא רצפים של מילים רצופות שפתיחתן אותה אות. למשל: "שלום שלום שלום" (רצף של 3 מילים מאות 'ש').</p>
+      <div class="row">
+        <div>
+          <label>אות ראשונה / הכל</label>
+          <select id="silLetter" style="font-size:18px;width:80px">
+            <option value="ALL">כל האותיות</option>
+            <option value="א">א</option><option value="ב">ב</option><option value="ג">ג</option>
+            <option value="ד">ד</option><option value="ה">ה</option><option value="ו">ו</option>
+            <option value="ז">ז</option><option value="ח">ח</option><option value="ט">ט</option>
+            <option value="י">י</option><option value="כ">כ</option><option value="ל">ל</option>
+            <option value="מ">מ</option><option value="נ">נ</option><option value="ס">ס</option>
+            <option value="ע">ע</option><option value="פ">פ</option><option value="צ">צ</option>
+            <option value="ק">ק</option><option value="ר">ר</option><option value="ש">ש</option>
+            <option value="ת">ת</option>
+          </select>
+        </div>
+        <div>
+          <label>אורך רצף</label>
+          <div class="row" style="align-items:center;gap:4px">
+            <input id="silMin" type="number" min="2" max="20" value="3" style="width:60px">
+            <span>-</span>
+            <input id="silMax" type="number" min="2" max="20" value="8" style="width:60px">
+            <button class="small" onclick="setSilRange(3,5)">3-5</button>
+            <button class="small" onclick="setSilRange(3,6)">3-6</button>
+            <button class="small" onclick="setSilRange(3,7)">3-7</button>
+            <button class="small" onclick="setSilRange(3,8)">3-8</button>
+          </div>
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="silBookSelect"></div>
+        </div>
+        <div><label>&nbsp;</label><button id="silBtn">חפש</button></div>
+      </div>
+      <div id="silErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="silStats" class="stats" style="display:none"></div>
+      <div id="silStatus" class="meta">בחר אות ראשונה ואורך רצף</div>
+      <div id="silResults" class="results"></div>
+    </div>
+  </div>
+
 
   <!-- Kabbalah Terms Search -->
   <div id="kabbalahTab" class="tab-content">
@@ -1235,6 +1286,60 @@ async function doLetterSearch(){
 }
 $('lsBtn').onclick=doLetterSearch;
 
+
+// Same Initial Letter Runs (consecutive words with same first letter)
+function setSilRange(min, max){
+  $('silMin').value = min;
+  $('silMax').value = max;
+}
+
+async function doSameInitialRuns(){
+  const letter = $('silLetter').value;
+  const min_len = parseInt($('silMin').value) || 3;
+  const max_len = parseInt($('silMax').value) || 8;
+
+  $('silBtn').disabled = true;
+  $('silStatus').textContent = 'מחפש...';
+  $('silResults').innerHTML = '';
+  $('silErr').style.display = 'none';
+  $('silStats').style.display = 'none';
+
+  try{
+    const params = new URLSearchParams({ letter, min_len, max_len });
+    const books = silBookSelector ? silBookSelector.getSelected() : [];
+    if(books.length) params.set('books', books.join(','));
+
+    const data = await(await fetch(`/same-initial-runs?${params}`)).json();
+
+    $('silStats').innerHTML = `
+      <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
+      <div class="stat"><b>${data.letter}</b><span>אות</span></div>
+      <div class="stat"><b>${data.min_length}-${data.max_length}</b><span>אורך</span></div>
+    `;
+    $('silStats').style.display = 'flex';
+
+    if(data.total_runs === 0){
+      $('silStatus').textContent = `לא נמצאו רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
+    }else{
+      $('silStatus').textContent = `נמצאו ${data.total_runs.toLocaleString()} רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
+      $('silResults').innerHTML = data.runs.map(r => {
+        const highlighted = r.run_words.map(w => `<mark>${w}</mark>`).join(' ');
+        return `<div class="hit">
+          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span></div>
+          <div class="text">${highlighted}</div>
+          <div class="meta">פסוק: ${r.verse_text}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    $('silErr').textContent = e.message || 'שגיאה';
+    $('silErr').style.display = 'block';
+  }
+  $('silBtn').disabled = false;
+}
+$('silBtn').onclick = doSameInitialRuns;
+
+
 // Kabbalah Terms Search
 const sefirotTerms=['כתר','חכמה','בינה','דעת','חסד','גבורה','תפארת','נצח','הוד','יסוד','מלכות'];
 const kbQuickTermsHtml=sefirotTerms.map(t=>`<div class="top-chip" onclick="searchKabbalahTerm('${t}')">${t}</div>`).join('');
@@ -1553,6 +1658,7 @@ function initBookSelectors(){
   console.log('Initializing book selectors...');
   bookSelector=createBookSelector('bookSelect');
   wcBookSelector=createBookSelector('wcBookSelect');
+  silBookSelector=createBookSelector('silBookSelect');
   rtBookSelector=createBookSelector('rtBookSelect');
   elsBookSelector=createBookSelector('elsBookSelect');
   tsBookSelector=createBookSelector('tsBookSelect');
