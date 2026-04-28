@@ -374,13 +374,16 @@
         <div>
           <label>אורך רצף</label>
           <div class="row" style="align-items:center;gap:4px">
-            <input id="silMin" type="number" min="2" max="20" value="3" style="width:60px">
-            <span>-</span>
-            <input id="silMax" type="number" min="2" max="20" value="8" style="width:60px">
-            <button class="small" onclick="setSilRange(3,5)">3-5</button>
-            <button class="small" onclick="setSilRange(3,6)">3-6</button>
-            <button class="small" onclick="setSilRange(3,7)">3-7</button>
-            <button class="small" onclick="setSilRange(3,8)">3-8</button>
+            <select id="silLength" style="width:80px">
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+            </select>
           </div>
         </div>
         <div>
@@ -1295,8 +1298,9 @@ function setSilRange(min, max){
 
 async function doSameInitialRuns(){
   const letter = $('silLetter').value;
-  const min_len = parseInt($('silMin').value) || 3;
-  const max_len = parseInt($('silMax').value) || 8;
+  const len = parseInt($('silLength').value) || 8;
+  const min_len = len;
+  const max_len = len;
 
   $('silBtn').disabled = true;
   $('silStatus').textContent = 'מחפש...';
