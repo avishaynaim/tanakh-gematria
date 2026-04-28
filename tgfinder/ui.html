@@ -105,7 +105,6 @@
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
     <div class="tab" data-tab="wordCount">🔢 ספירת מילים</div>
     <div class="tab" data-tab="roshei">א״ת ראשי/סופי</div>
-    <div class="tab" data-tab="sofim">סופי תיבות</div>
     <div class="tab" data-tab="els">דילוג אותיות</div>
     <div class="tab" data-tab="letterSearch">🔤 אות פותחת/סוגרת</div>
      <div class="tab" data-tab="sameInitialRuns">🔤 רצפי אות ראשונה</div>
@@ -255,26 +254,6 @@
           <label>ספרים</label>
           <div id="rtBookSelect"></div>
         </div>
-<div id="sofimTab" class="tab-content">
-    <div class="card no-top">
-      <div class="row">
-        <div>
-          <label>מילה לחיפוש</label>
-          <input id="sofimWord" type="text" placeholder="אמת" style="width:120px">
-        </div>
-        <div>
-          <label>מצב</label>
-          <select id="sofimMode">
-            <option value="first">ראשי תיבות (אות ראשונה)</option>
-            <option value="last">סופי תיבות (אות אחרונה)</option>
-            <option value="1">אות שנייה</option>
-            <option value="2">אות שלישית</option>
-          </select>
-        </div>
-        <div>
-          <label>ספרים</label>
-          <div id="sofimBookSelect"></div>
-        </div>
         <div style="display:flex;align-items:center;gap:4px;padding-top:18px">
           <input type="checkbox" id="rtReverse"><label for="rtReverse" style="margin:0;cursor:pointer">סדר הפוך</label>
         </div>
@@ -392,8 +371,6 @@
             <option value="ת">ת</option>
           </select>
         </div>
-        <div>
-          <label>אורך רצף</label>
         <div>
           <label>אורך רצף</label>
           <div class="row" style="align-items:center;gap:4px">
@@ -1314,11 +1291,13 @@ $('lsBtn').onclick=doLetterSearch;
 
 
 // Same Initial Letter Runs (consecutive words with same first letter)
-
+function setSilRange(min, max){
+  $('silMin').value = min;
+  $('silMax').value = max;
+}
 
 async function doSameInitialRuns(){
   const letter = $('silLetter').value;
-
   const len = parseInt($('silLength').value) || 8;
   const min_len = len;
   const max_len = len;
@@ -1425,7 +1404,6 @@ async function doSameInitialRuns(){
   }
   $('silBtn').disabled = false;
 }
->>>>>>> 0fd64be
 
   $('silBtn').disabled = true;
   $('silStatus').textContent = 'מחפש...';
@@ -1439,10 +1417,6 @@ async function doSameInitialRuns(){
     if(books.length) params.set('books', books.join(','));
 
     const data = await(await fetch(`/same-initial-runs?${params}`)).json();
-
-    if(!data || data.total_runs === undefined){
-      throw new Error('תגובה לא תקינה מהשרת');
-    }
 
     $('silStats').innerHTML = `
       <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
@@ -1470,9 +1444,7 @@ async function doSameInitialRuns(){
   }
   $('silBtn').disabled = false;
 }
-
 $('silBtn').onclick = doSameInitialRuns;
-
 
 
 // Kabbalah Terms Search
@@ -1808,19 +1780,6 @@ if(document.readyState==='loading'){
 }else{
   initBookSelectors();
 }
-</script>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const sofimTab = document.getElementById('sofimTab');
-  if (sofimTab) {
-    // Set the mode dropdown to 'last' when switching to sofim tab
-    const modeSelect = document.getElementById('rtMode');
-    if (modeSelect) {
-      modeSelect.value = 'last';
-    }
-  }
-});
 </script>
 </body>
 </html>
