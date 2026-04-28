@@ -1277,7 +1277,7 @@ class SameInitialRunsResult(BaseModel):
 
 @app.get("/same-initial-runs", response_model=SameInitialRunsResult)
 def api_same_initial_runs(
-    letter: str = Query(..., min_length=1, max_length=1, description="אות ראשונה לחיפוש (למשל א, ב, ג...)"),
+    letter: str = Query(..., min_length=1, max_length=3, description="אות ראשונה (א-ת) או ALL לכל האותיות"),
     min_len: int = Query(3, ge=2, le=10, description="אורך מינימלי רצף (2-10)"),
     max_len: int = Query(8, ge=2, le=20, description="אורך מקסימלי רצף (2-20)"),
     books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
@@ -1320,7 +1320,11 @@ def api_same_initial_runs(
     
     cur = conn.execute(sql, tuple(params_list))
     matches = []
-    normalized_letter = normalize_sofit(letter.strip())
+    # Handle "ALL" special case: match any starting letter
+    if letter.strip().upper() == "ALL":
+        target_letter = None
+    else:
+        target_letter = normalize_sofit(letter.strip())
 
     for row in cur:
         clean_text = _clean(row)
@@ -1328,26 +1332,30 @@ def api_same_initial_runs(
         
         i = 0
         while i < len(words):
-            if words[i] and normalize_sofit(words[i][0]) == normalized_letter:
-                run_start = i
-                j = i + 1
-                while j < len(words) and words[j] and normalize_sofit(words[j][0]) == normalized_letter:
-                    j += 1
-                run_len = j - run_start
-                if min_len <= run_len <= max_len:
-                    hebrew_book = book_to_hebrew(row["book"])
-                    ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
-                    matches.append(SameInitialRun(
-                        ref=ref,
-                        verse_text=row["text"],
-                        run_words=words[run_start:j],
-                        letter=letter,
-                        run_length=run_len
-                    ))
-                i = j
-            else:
+            if not words[i]:
                 i += 1
-
+                continue
+            first_letter = normalize_sofit(words[i][0])
+            if target_letter is not None and first_letter != target_letter:
+                i += 1
+                continue
+            run_start = i
+            j = i + 1
+            while j < len(words) and words[j] and normalize_sofit(words[j][0]) == first_letter:
+                j += 1
+            run_len = j - run_start
+            if min_len <= run_len <= max_len:
+                hebrew_book = book_to_hebrew(row["book"])
+                ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
+                run_letter = first_letter if target_letter is None else letter
+                matches.append(SameInitialRun(
+                    ref=ref,
+                    verse_text=row["text"],
+                    run_words=words[run_start:j],
+                    letter=run_letter,
+                    run_length=run_len
+                ))
+            i = j
     conn.close()
     matches.sort(key=lambda x: x.run_length, reverse=True)
 

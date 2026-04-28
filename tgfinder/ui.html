@@ -1309,6 +1309,109 @@ async function doSameInitialRuns(){
     const books = silBookSelector ? silBookSelector.getSelected() : [];
     if(books.length) params.set('books', books.join(','));
 
+    const response = await fetch(`/same-initial-runs?${params}`);
+    if(!response.ok){
+      const err = await response.json().catch(()=>({detail:'שגיאה בשרת'}));
+      throw new Error(err.detail || 'שגיאה בשרת');
+    }
+    const data = await response.json();
+
+    if(!data || data.total_runs === undefined){
+      throw new Error('תגובה לא תקינה מהשרת');
+    }
+
+    $('silStats').innerHTML = \`
+      <div class="stat"><b>\${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
+      <div class="stat"><b>\${data.letter}</b><span>אות</span></div>
+      <div class="stat"><b>\${data.min_length}-\${data.max_length}</b><span>אורך</span></div>
+    \`;
+    $('silStats').style.display = 'flex';
+
+    if(data.total_runs === 0){
+      $('silStatus').textContent = \`לא נמצאו רצפים של \${min_len}-\${max_len} מילים שמתחילים ב-\${letter}\`;
+    }else{
+      $('silStatus').textContent = \`נמצאו \${data.total_runs.toLocaleString()} רצפים של \${min_len}-\${max_len} מילים שמתחילים ב-\${letter}\`;
+      $('silResults').innerHTML = data.runs.map(r => {
+        const highlighted = r.run_words.map(w => \`<mark>\${w}</mark>\`).join(' ');
+        return \`<div class="hit">
+          <div><span class="ref">\${r.ref}</span><span class="pill">\${r.run_length} מילים</span></div>
+          <div class="text">\${highlighted}</div>
+          <div class="meta">פסוק: \${r.verse_text}</div>
+        </div>\`;
+      }).join('');
+    }
+  }catch(e){
+    $('silErr').textContent = e.message || 'שגיאה';
+    $('silErr').style.display = 'block';
+  }
+  $('silBtn').disabled = false;
+}
+
+  $('silBtn').disabled = true;
+  $('silStatus').textContent = 'מחפש...';
+  $('silResults').innerHTML = '';
+  $('silErr').style.display = 'none';
+  $('silStats').style.display = 'none';
+
+  try{
+    // Validate letter
+    if(letter === 'ALL' || letter.length !== 1){
+      throw new Error('בחר אות אחת עבור אות ראשונה, או השתמש בחיפוש טקסט multipletology');
+    }
+
+    const params = new URLSearchParams({ letter, min_len, max_len });
+    const books = silBookSelector ? silBookSelector.getSelected() : [];
+    if(books.length) params.set('books', books.join(','));
+
+    const response = await fetch(`/same-initial-runs?${params}`);
+    if(!response.ok){
+      const err = await response.json().catch(()=>({detail:'שגיאה בשרת'}));
+      throw new Error(err.detail || 'שגיאה בשרת');
+    }
+    const data = await response.json();
+
+    if(!data || data.total_runs === undefined){
+      throw new Error('תגובה לא תקינה מהשרת');
+    }
+
+    $('silStats').innerHTML = `
+      <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
+      <div class="stat"><b>${data.letter}</b><span>אות</span></div>
+      <div class="stat"><b>${data.min_length}-${data.max_length}</b><span>אורך</span></div>
+    `;
+    $('silStats').style.display = 'flex';
+
+    if(data.total_runs === 0){
+      $('silStatus').textContent = `לא נמצאו רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
+    }else{
+      $('silStatus').textContent = `נמצאו ${data.total_runs.toLocaleString()} רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
+      $('silResults').innerHTML = data.runs.map(r => {
+        const highlighted = r.run_words.map(w => `<mark>${w}</mark>`).join(' ');
+        return `<div class="hit">
+          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span></div>
+          <div class="text">${highlighted}</div>
+          <div class="meta">פסוק: ${r.verse_text}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    $('silErr').textContent = e.message || 'שגיאה';
+    $('silErr').style.display = 'block';
+  }
+  $('silBtn').disabled = false;
+}
+
+  $('silBtn').disabled = true;
+  $('silStatus').textContent = 'מחפש...';
+  $('silResults').innerHTML = '';
+  $('silErr').style.display = 'none';
+  $('silStats').style.display = 'none';
+
+  try{
+    const params = new URLSearchParams({ letter, min_len, max_len });
+    const books = silBookSelector ? silBookSelector.getSelected() : [];
+    if(books.length) params.set('books', books.join(','));
+
     const data = await(await fetch(`/same-initial-runs?${params}`)).json();
 
     $('silStats').innerHTML = `
