@@ -4,6 +4,8 @@ from typing import List, Literal, Optional, Dict, Any, Tuple
 
 from .db import connect
 from .gematria import normalize_hebrew
+from .logging_config import get_logger
+logger = get_logger(__name__)
 
 Kind = Literal["verse", "word", "gram"]
 
@@ -46,6 +48,10 @@ def search(
     book: Optional[str] = None,  # Filter by single book
     books: Optional[List[str]] = None,  # Filter by multiple books
 ) -> List[Hit]:
+    logger.info("SEARCH_START db=%s value=%s kind=%s n=%s limit=%s offset=%s book=%s books=%s",
+                      db_path, value, kind, n, limit, offset, book, books)
+    logger.info("SEARCH_START db=%s value=%s kind=%s n=%s limit=%s offset=%s book=%s books=%s",
+                      db_path, value, kind, n, limit, offset, book, books)
     conn = connect(db_path)
     hits: List[Hit] = []
 

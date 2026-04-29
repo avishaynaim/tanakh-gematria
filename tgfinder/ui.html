@@ -97,7 +97,7 @@
   </style>
 </head>
 <body>
-<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.7</span></h1></header>
+<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.7.1</span></h1></header>
 <main>
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
@@ -1403,7 +1403,7 @@ async function doSameInitialRuns(){
     $('silErr').style.display = 'block';
   }
   $('silBtn').disabled = false;
-}
+
 
   $('silBtn').disabled = true;
   $('silStatus').textContent = 'מחפש...';
@@ -1443,7 +1443,7 @@ async function doSameInitialRuns(){
     $('silErr').style.display = 'block';
   }
   $('silBtn').disabled = false;
-}
+
 $('silBtn').onclick = doSameInitialRuns;
 
 
@@ -1781,5 +1781,121 @@ if(document.readyState==='loading'){
   initBookSelectors();
 }
 </script>
+
+<!-- Live Log Viewer Panel -->
+<div id="logPanel" style="display:none; position:fixed; top:0; right:0; width:90%%; max-width:600px; height:100vh; background:#111; color:#0f0; font-family:monospace; font-size:11px; padding:10px; overflow:auto; z-index:9999; border-left:2px solid #333;">
+  <div style="position:sticky; top:0; background:#111; padding:8px 0; border-bottom:1px solid #333; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+    <h3 style="margin:0; color:#0f0;"> Live Logs </h3>
+    <div>
+      <select id="logLevel" style="background:#222; color:#0f0; border:1px solid #444; padding:4px 8px; font-size:12px; border-radius:4px;">
+        <option value="ALL">All</option>
+        <option value="INFO" selected>INFO+</option>
+        <option value="WARNING">WARNING+</option>
+        <option value="ERROR">ERROR+</option>
+        <option value="DEBUG">DEBUG</option>
+      </select>
+      <button id="logRefresh" style="background:#333; color:#0f0; border:1px solid #555; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">Refresh</button>
+      <button id="logClear" style="background:#333; color:#f00; border:1px solid #555; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">Clear</button>
+      <button id="logClose" style="background:#c00; color:#fff; border:none; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">X</button>
+    </div>
+  </div>
+  <pre id="logContent" style="white-space:pre-wrap; word-break:break-all; margin:0; line-height:1.4;"></pre>
+  <div id="logStatus" style="position:sticky; bottom:0; background:#111; padding:8px 0; border-top:1px solid #333; color:#888; font-size:11px;"></div>
+</div>
+
+<script>
+(function() {
+  consoleLog = console.log;
+  consoleError = console.error;
+  consoleWarn = console.warn;
+  let logEntries = [];
+  let refreshTimer = null;
+
+  function parseLogLine(line) {
+    // Pattern: 2026-04-29 09:57:31.334 [INFO    ] tanakh.request: REQ GET /
+    const m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\s*\] (\S+): (.*)$/);
+    if (m) {
+      return { time: m[1], level: m[2], module: m[3], msg: m[4] };
+    }
+    return { raw: line };
+  }
+
+  function getFilteredLogs() {
+    const level = document.getElementById('logLevel').value;
+    const levels = { 'ALL':0, 'DEBUG':1, 'INFO':2, 'WARNING':3, 'ERROR':4 };
+    const minLevel = levels[level];
+    return logEntries.filter(entry => {
+      if (!entry.level) return true;
+      const entryLevel = entry.level === 'DEBUG' ? 1 : entry.level === 'INFO' ? 2 : entry.level === 'WARNING' ? 3 : 4;
+      return entryLevel >= minLevel;
+    }).slice(-200);
+  }
+
+  function renderLogs() {
+    const container = document.getElementById('logContent');
+    const lines = getFilteredLogs();
+    container.innerHTML = lines.map(e => {
+      const color = e.level === 'ERROR' ? '#f44' : e.level === 'WARNING' ? '#fb0' : e.level === 'DEBUG' ? '#88f' : '#0f0';
+      const timeStr = e.time ? `<span style="color:#666">${e.time}</span>` : '';
+      const levelStr = e.level ? `<span style="color:${color};font-weight:bold">[${e.level}]</span>` : '';
+      const moduleStr = e.module ? `<span style="color:#0af">${e.module}</span>` : '';
+      const msg = e.msg ? e.msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') : e.raw;
+      return `${timeStr} ${levelStr} ${moduleStr} ${msg}`;
+    }).join('\n');
+    document.getElementById('logStatus').textContent = `Showing ${lines.length} of ${logEntries.length} entries`;
+  }
+
+  async function fetchLogs() {
+    try {
+      const resp = await fetch('/logs?limit=200');
+      const data = await resp.json();
+      if (data.lines) {
+        logEntries = data.lines.map(parseLogLine).filter(e => e);
+        renderLogs();
+      }
+    } catch(e) { consoleError('Log fetch error:', e); }
+  }
+
+  function startAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchLogs, 2000);
+  }
+
+  // UI controls
+  document.getElementById('logClose').onclick = () => {
+    document.getElementById('logPanel').style.display = 'none';
+    clearInterval(refreshTimer);
+  };
+  document.getElementById('logRefresh').onclick = () => { fetchLogs(); };
+  document.getElementById('logClear').onclick = () => { logEntries = []; renderLogs(); };
+  document.getElementById('logLevel').onchange = () => { renderLogs(); startAutoRefresh(); };
+
+  // Intercept console and capture
+  const origLog = console.log, origError = console.error, origWarn = console.warn;
+  function capture(level, args) {
+    const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+    logEntries.push({ level, module: 'client', msg: msg, time: new Date().toISOString().replace('T',' ').substr(0,23) });
+    origLog.apply(console, args);
+  }
+  console.log = function(...args) { capture('INFO', args); };
+  console.error = function(...args) { capture('ERROR', args); };
+  console.warn = function(...args) { capture('WARNING', args); };
+
+  // Show panel manually via ?logs=true or call from console
+  if (window.location.search.includes('logs=true')) {
+    document.getElementById('logPanel').style.display = 'block';
+    startAutoRefresh();
+  }
+
+  // Expose global to show logs
+  window.showLogs = function() {
+    document.getElementById('logPanel').style.display = 'block';
+    startAutoRefresh();
+  };
+
+  consoleLog('Log panel initialized. Call showLogs() to open, or append ?logs=true to URL.');
+})();
+</script>
+
 </body>
 </html>

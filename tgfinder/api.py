@@ -2,6 +2,10 @@ from __future__ import annotations
 import re
 from os import environ
 
+# Global logging setup
+from .logging_config import setup_logging
+setup_logging(level=environ.get("LOG_LEVEL", "INFO"))
+
 
 from pathlib import Path
 from typing import List, Optional, Literal, Dict, Any
@@ -14,6 +18,14 @@ from .search import search, book_to_hebrew, _BOOK_ORDER_CASE, _GBOOK_ORDER_CASE
 from .gematria import gematria, normalize_hebrew, atbash, atbash_gematria
 from .bootstrap_db import ensure_db
 from .db import connect
+
+import time
+import logging
+from fastapi import Request
+from .logging_config import get_logger
+
+logger = get_logger("api")
+
 
 
 def _clean(row) -> str:
@@ -34,6 +46,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Integrate request logging middleware and logs endpoint
+from .request_logging import setup_request_logging
+setup_request_logging(app)
+
+from .logs_api import router as logs_router
+app.include_router(logs_router)
+
 class HitOut(BaseModel):
     kind: str
     ref: str
@@ -46,8 +65,25 @@ class HitOut(BaseModel):
 
 _UI_PATH = Path(__file__).with_name("ui.html")
 
+
+def _log_request(request: Request, endpoint: str, params: dict = None):
+    """Log incoming request with sanitized params."""
+    if request and request.client:
+        client = request.client.host
+    else:
+        client = "?"
+    safe = {}
+    if params:
+        for k, v in params.items():
+            if k in ("text", "word", "q", "term"):
+                safe[k] = str(v)[:80]
+            else:
+                safe[k] = v
+    logger.info("REQ %s -> %s params=%s", client, endpoint, safe)
+
 @app.get("/", response_class=HTMLResponse)
-def home():
+def home(request: Request):
+    _log_request(request, "/")
     return HTMLResponse(_UI_PATH.read_text(encoding="utf-8"))
 
 @app.get("/gematria")

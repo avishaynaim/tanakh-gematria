@@ -2,6 +2,8 @@ import gdown
 import os
 
 from pathlib import Path
+from .logging_config import get_logger
+logger = get_logger(__name__)
 
 MIN_BYTES = 50_000_000  # 50MB
 
@@ -12,6 +14,7 @@ def _is_sqlite(p: Path) -> bool:
         return f.read(16) == b"SQLite format 3\x00"
 
 def ensure_db() -> Path:
+    logger.info("BOOTSTRAP_DB_START")
     """
     Ensures local SQLite DB exists and is valid.
     Downloads from Google Drive (via gdown) if missing/invalid/small.

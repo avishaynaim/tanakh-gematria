@@ -1,6 +1,9 @@
 from __future__ import annotations
 import re
+import time
 from typing import Dict
+from .logging_config import get_logger
+logger = get_logger(__name__)
 
 _HEBREW_MARKS_RE = re.compile(r"[\u0591-\u05C7]")
 _NON_HEBREW_LETTERS_RE = re.compile(r"[^ \u05D0-\u05EA\u05DA\u05DD\u05DF\u05E3\u05E5]+")
@@ -38,10 +41,13 @@ def letters_only(text: str) -> str:
 def gematria(text: str) -> int:
     t = normalize_hebrew(text)
     total = 0
+    start = time.perf_counter()
     for ch in t:
         if ch == " ":
             continue
         total += _GEMATRIA.get(ch, 0)
+    elapsed = time.perf_counter() - start
+    logger.debug("GEMATRIA_CALC text=%r letters=%d elapsed=%.3fs gematria=%d", text[:80], len(text), elapsed, total)
     return total
 
 _ATBASH_MAP = str.maketrans(

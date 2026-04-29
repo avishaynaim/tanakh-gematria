@@ -5,6 +5,8 @@ from typing import Iterator, List, Optional, Tuple
 
 from .gematria import normalize_hebrew, letters_only, gematria
 from .db import connect, init_db, insert_verses, insert_grams
+from .logging_config import get_logger
+logger = get_logger(__name__)
 
 VerseRow = Tuple[str,int,int,str]  # (book, chapter, verse, text)
 

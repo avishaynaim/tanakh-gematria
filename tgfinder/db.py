@@ -2,6 +2,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 from typing import Iterable, Tuple
+from .logging_config import get_logger
+logger = get_logger(__name__)
 
 SCHEMA = r'''
 PRAGMA journal_mode=WAL;
@@ -42,6 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_grams_ref ON grams(book, chapter, verse, start_wo
 
 def connect(db_path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
+    logger.debug("DB connect: %s", db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
