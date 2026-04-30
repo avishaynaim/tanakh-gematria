@@ -24,6 +24,8 @@ class Hit:
     gematria: int
     match_text: Optional[str] = None
     match_range: Optional[str] = None
+    word_index: Optional[int] = None
+    end_word_index: Optional[int] = None
 
 def _ref(book: str, chapter: int, verse: int) -> str:
     b = book_to_hebrew(book)
@@ -139,6 +141,8 @@ def search(
                 gematria=int(r["gematria"]),
                 match_text=r["match_text"],
                 match_range=rng,
+                word_index=int(r["start_word"]),
+                end_word_index=int(r["end_word"]),
             ))
 
     conn.close()

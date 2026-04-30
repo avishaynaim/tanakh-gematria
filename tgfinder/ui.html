@@ -97,7 +97,10 @@
   </style>
 </head>
 <body>
-<header><h1>🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.7.1</span></h1></header>
+<header style="display:flex;justify-content:space-between;align-items:center">
+  <h1 style="margin:0">🔢 חיפוש גימטריה בתנ״ך <span style="font-size:12px;opacity:0.7">v1.8</span></h1>
+  <button id="textModeBtn" onclick="toggleTextMode()" style="padding:6px 12px;border:1px solid rgba(255,255,255,.4);border-radius:8px;background:rgba(255,255,255,.1);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap">ניקוד: כבוי</button>
+</header>
 <main>
   <div class="tabs">
     <div class="tab active" data-tab="search">🔍 חיפוש</div>
@@ -105,9 +108,11 @@
     <div class="tab" data-tab="histogramWords">📊 מילים</div>
     <div class="tab" data-tab="wordCount">🔢 ספירת מילים</div>
     <div class="tab" data-tab="roshei">א״ת ראשי/סופי</div>
+    <div class="tab" data-tab="sofim">סופי תיבות</div>
     <div class="tab" data-tab="els">דילוג אותיות</div>
     <div class="tab" data-tab="letterSearch">🔤 אות פותחת/סוגרת</div>
-     <div class="tab" data-tab="sameInitialRuns">🔤 רצפי אות ראשונה</div>
+     <div class="tab" data-tab="sameInitialRuns">🔤 רצפי אות במיקום</div>
+    <div class="tab" data-tab="gematriaRuns">📈 רצפי גימטריה</div>
     <div class="tab" data-tab="kabbalah">✡️ מושגי קבלה</div>
     <div class="tab" data-tab="textSearch">📝 חיפוש בטקסט</div>
     <div class="tab" data-tab="atbash">🔄 א״ת ב״ש</div>
@@ -268,6 +273,41 @@
     </div>
   </div>
 
+  <!-- Sofei Tevot (defaults to last-letter mode) -->
+  <div id="sofimTab" class="tab-content">
+    <div class="card no-top">
+      <div class="row">
+        <div>
+          <label>מילה לחיפוש</label>
+          <input id="sofimWord" type="text" placeholder="אמת" style="width:120px">
+        </div>
+        <div>
+          <label>מצב</label>
+          <select id="sofimMode">
+            <option value="first">ראשי תיבות (אות ראשונה)</option>
+            <option value="last" selected>סופי תיבות (אות אחרונה)</option>
+            <option value="1">אות שנייה</option>
+            <option value="2">אות שלישית</option>
+          </select>
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="sofimBookSelect"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;padding-top:18px">
+          <input type="checkbox" id="sofimReverse"><label for="sofimReverse" style="margin:0;cursor:pointer">סדר הפוך</label>
+        </div>
+        <div><label>&nbsp;</label><button id="sofimBtn">חפש</button></div>
+      </div>
+      <div id="sofimErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="sofimStats" class="stats" style="display:none"></div>
+      <div id="sofimStatus" class="meta">הזן מילה לחיפוש</div>
+      <div id="sofimResults" class="results"></div>
+    </div>
+  </div>
+
   <!-- ELS (Equidistant Letter Sequences) -->
   <div id="elsTab" class="tab-content">
     <div class="card no-top">
@@ -353,38 +393,34 @@
   <!-- Same Initial Letter Runs -->
   <div id="sameInitialRunsTab" class="tab-content">
     <div class="card no-top">
-      <h3 style="margin:0 0 12px;font-size:15px">🔤 מילים עם אות ראשונה–
-
-      <p class="hint" style="margin-bottom:12px">מצא רצפים של מילים רצופות שפתיחתן אותה אות. למשל: "שלום שלום שלום" (רצף של 3 מילים מאות 'ש').</p>
+      <h3 style="margin:0 0 12px;font-size:15px">🔤 רצפי אות במיקום</h3>
+      <p class="hint" style="margin-bottom:12px">מצא רצפים של מילים רצופות שאות במיקום מסוים (ראשונה/שנייה/שלישית/אחרונה) היא אותה אות.</p>
       <div class="row">
         <div>
-          <label>אות ראשונה / הכל</label>
-          <select id="silLetter" style="font-size:18px;width:80px">
-            <option value="ALL">כל האותיות</option>
-            <option value="א">א</option><option value="ב">ב</option><option value="ג">ג</option>
-            <option value="ד">ד</option><option value="ה">ה</option><option value="ו">ו</option>
-            <option value="ז">ז</option><option value="ח">ח</option><option value="ט">ט</option>
-            <option value="י">י</option><option value="כ">כ</option><option value="ל">ל</option>
-            <option value="מ">מ</option><option value="נ">נ</option><option value="ס">ס</option>
-            <option value="ע">ע</option><option value="פ">פ</option><option value="צ">צ</option>
-            <option value="ק">ק</option><option value="ר">ר</option><option value="ש">ש</option>
-            <option value="ת">ת</option>
+          <label>מיקום האות</label>
+          <select id="silPosition">
+            <option value="1">ראשונה</option>
+            <option value="2">שנייה</option>
+            <option value="3">שלישית</option>
+            <option value="4">אחרונה</option>
           </select>
         </div>
         <div>
-          <label>אורך רצף</label>
-          <div class="row" style="align-items:center;gap:4px">
-            <select id="silLength" style="width:80px">
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-            </select>
-          </div>
+          <label>אותיות</label>
+          <div id="silLetterSelect"></div>
+        </div>
+        <div>
+          <label>אורך רצף מינימלי</label>
+          <select id="silLength">
+            <option value="3">3+</option>
+            <option value="4">4+</option>
+            <option value="5">5+</option>
+            <option value="6">6+</option>
+            <option value="7">7+</option>
+            <option value="8">8+</option>
+            <option value="9">9+</option>
+            <option value="10">10+</option>
+          </select>
         </div>
         <div>
           <label>ספרים</label>
@@ -396,8 +432,52 @@
     </div>
     <div class="card">
       <div id="silStats" class="stats" style="display:none"></div>
-      <div id="silStatus" class="meta">בחר אות ראשונה ואורך רצף</div>
+      <div id="silStatus" class="meta">בחר מיקום אות ואורך רצף</div>
       <div id="silResults" class="results"></div>
+    </div>
+  </div>
+
+  <!-- Gematria Runs -->
+  <div id="gematriaRunsTab" class="tab-content">
+    <div class="card no-top">
+      <h3 style="margin:0 0 12px;font-size:15px">📈 רצפי גימטריה</h3>
+      <p class="hint" style="margin-bottom:12px">מצא רצפים של מילים רצופות שגימטריית כל מילה עולה (+1) / יורדת (−1) / שווה לקודמת.</p>
+      <div class="row">
+        <div>
+          <label>כיוון</label>
+          <select id="grDirection">
+            <option value="both">עולה/יורדת</option>
+            <option value="up">עולה</option>
+            <option value="down">יורדת</option>
+            <option value="equal">ערך זהה</option>
+          </select>
+        </div>
+        <div>
+          <label>אורך רצף מינימלי</label>
+          <select id="grLength">
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+            <option value="4">4+</option>
+            <option value="5">5+</option>
+            <option value="6">6+</option>
+            <option value="7">7+</option>
+            <option value="8">8+</option>
+            <option value="9">9+</option>
+            <option value="10">10+</option>
+          </select>
+        </div>
+        <div>
+          <label>ספרים</label>
+          <div id="grBookSelect"></div>
+        </div>
+        <div><label>&nbsp;</label><button id="grBtn">חפש</button></div>
+      </div>
+      <div id="grErr" class="error" style="display:none"></div>
+    </div>
+    <div class="card">
+      <div id="grStats" class="stats" style="display:none"></div>
+      <div id="grStatus" class="meta">בחר כיוון ואורך רצף</div>
+      <div id="grResults" class="results"></div>
     </div>
   </div>
 
@@ -839,6 +919,7 @@ function createBookSelector(id){
 
 // Book selector states
 let bookSelector,wcBookSelector,rtBookSelector,elsBookSelector,tsBookSelector;
+let silLetterSelector,grBookSelector,silBookSelector,sofimBookSelector;
 
 // Search
 function syncMode(){
@@ -874,7 +955,7 @@ async function doSearch(){
   try{
     const data=await(await fetch("/search?"+params)).json();
     $("status").textContent="נמצאו "+data.length+" תוצאות";
-    $("results").innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${kindHeb[h.kind]||h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.text}</div>${h.match_text?`<div class="meta">התאמה: ${h.match_text}</div>`:''}</div>`).join('');
+    $("results").innerHTML=data.map(h=>`<div class="hit"><div><span class="ref">${h.ref}</span><span class="pill">${kindHeb[h.kind]||h.kind}</span><span class="meta" style="float:left">גימטריה: ${h.gematria}</span></div><div class="text">${h.word_index?hlWord(h.text,extractDisplayPhrase(h.text,h.word_index,h.end_word_index)):displayText(h.text)}</div>${h.word_index?`<div class="meta">התאמה: <b>${extractDisplayPhrase(h.text,h.word_index,h.end_word_index)}</b></div>`:''}</div>`).join('');
   }catch(e){$("err").textContent=e.message;$("err").style.display="block";}
   $("btn").disabled=false;
 }
@@ -939,7 +1020,7 @@ async function loadData(type){
     topDiv.innerHTML=`
       <h4>🏆 ערכי השיא (הכי נפוצים)</h4>
       <div class="top-chips">
-        ${top10.map((d,i)=>`<div class="top-chip" onclick="showModal('${type}',${d.gematria})">${i+1}. גימטריה ${d.gematria}<b>${d.count}</b></div>`).join('')}
+        ${top10.map((d,i)=>`<div class="top-chip" onclick="showModal('${type}',${d.gematria})">${i+1}. גימטריה <b>${d.gematria}</b> <span style="color:#78716c">(${d.count.toLocaleString()})</span></div>`).join('')}
       </div>
     `;
 
@@ -1046,12 +1127,13 @@ function showModal(type,gematria){
     if(isV){
       return `<div class="modal-item" onclick="searchGem(${gematria},'verse')">
         <div class="modal-ref">${item.ref}</div>
-        <div class="modal-text">${item.text}</div>
+        <div class="modal-text">${displayText(item.text)}</div>
       </div>`;
     }else{
+      const dw=extractDisplayWord(item.verse_text,item.word_index)||displayText(item.word);
       return `<div class="modal-item" onclick="searchGem(${gematria},'word')">
-        <div class="modal-ref">${item.ref}<span class="modal-word">${item.word}</span></div>
-        <div class="modal-text">${item.verse_text}</div>
+        <div class="modal-ref">${item.ref}<span class="modal-word">${dw}</span></div>
+        <div class="modal-text">${hlWord(item.verse_text,dw)}</div>
       </div>`;
     }
   }).join('')+(items.length>100?`<div class="meta" style="text-align:center;padding:10px">מציג 100 מתוך ${items.length}</div>`:'');
@@ -1102,12 +1184,10 @@ async function doWordSearch(){
     }else{
       $('wcStatus').textContent=`נמצאו ${data.count.toLocaleString()} מופעים`;
       $('wcResults').innerHTML=data.locations.map(loc=>{
-        // Highlight all occurrences of word_text in verse
-        const escaped=loc.word_text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-        const highlighted=loc.verse_text.replace(new RegExp(escaped,'g'),`<mark>${loc.word_text}</mark>`);
+        const dw=extractDisplayWord(loc.verse_text,loc.word_index)||displayText(loc.word_text);
         return `<div class="hit">
-          <div><span class="ref">${loc.ref}</span><span class="pill">${loc.word_text}</span></div>
-          <div class="text">${highlighted}</div>
+          <div><span class="ref">${loc.ref}</span><span class="pill">${dw}</span></div>
+          <div class="text">${hlWord(loc.verse_text,dw)}</div>
         </div>`;
       }).join('');
     }
@@ -1152,10 +1232,10 @@ async function doRosheiSearch(){
     }else{
       $('rtStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
       $('rtResults').innerHTML=data.matches.map(m=>{
-        const wordsHtml=m.words.map((w,i)=>`<mark>${w}</mark>`).join(' ');
+        const wordsHtml=m.words.map(w=>`<mark>${displayText(w)}</mark>`).join(' ');
         return `<div class="hit">
           <div><span class="ref">${m.ref}</span><span class="pill">${m.letters}</span></div>
-          <div class="text">${m.verse_text}</div>
+          <div class="text">${displayText(m.verse_text)}</div>
           <div class="meta">מילים: ${wordsHtml}</div>
         </div>`;
       }).join('');
@@ -1167,6 +1247,35 @@ async function doRosheiSearch(){
 }
 $('rtBtn').onclick=doRosheiSearch;
 $('rtWord').onkeydown=e=>{if(e.key==='Enter')doRosheiSearch();};
+
+// Sofim Tab Search (same API, own elements)
+async function doSofimSearch(){
+  const word=$('sofimWord').value.trim();
+  if(!word){$('sofimErr').textContent='הזן מילה';$('sofimErr').style.display='block';return;}
+  const mode=$('sofimMode').value;
+  const selectedBooks=sofimBookSelector?sofimBookSelector.getSelected():[];
+  $('sofimBtn').disabled=true;$('sofimStatus').textContent='מחפש...';$('sofimResults').innerHTML='';$('sofimErr').style.display='none';$('sofimStats').style.display='none';
+  try{
+    const params=new URLSearchParams({word,mode});
+    selectedBooks.forEach(b=>params.append('books',b));
+    if($('sofimReverse').checked)params.set('reverse','true');
+    const data=await(await fetch(`/roshei-tevot?${params}`)).json();
+    if(data.detail){$('sofimErr').textContent=data.detail;$('sofimErr').style.display='block';$('sofimBtn').disabled=false;return;}
+    $('sofimStats').innerHTML=`<div class="stat"><b>${data.count.toLocaleString()}</b><span>תוצאות</span></div><div class="stat"><b>${data.mode}</b><span>מצב חיפוש</span></div>`;
+    $('sofimStats').style.display='flex';
+    if(data.count===0){$('sofimStatus').textContent='לא נמצאו תוצאות';}
+    else{
+      $('sofimStatus').textContent=`נמצאו ${data.count.toLocaleString()} תוצאות`;
+      $('sofimResults').innerHTML=data.matches.map(m=>{
+        const wordsHtml=m.words.map(w=>`<mark>${displayText(w)}</mark>`).join(' ');
+        return `<div class="hit"><div><span class="ref">${m.ref}</span><span class="pill">${m.letters}</span></div><div class="text">${displayText(m.verse_text)}</div><div class="meta">מילים: ${wordsHtml}</div></div>`;
+      }).join('');
+    }
+  }catch(e){$('sofimErr').textContent=e.message||'שגיאה';$('sofimErr').style.display='block';}
+  $('sofimBtn').disabled=false;
+}
+$('sofimBtn').onclick=doSofimSearch;
+$('sofimWord').onkeydown=e=>{if(e.key==='Enter')doSofimSearch();};
 
 // ELS Search
 function highlightElsText(text,positions){
@@ -1265,22 +1374,20 @@ async function doLetterSearch(){
     if(data.count===0){
       $('lsStatus').textContent='לא נמצאו פסוקים';
     }else{
-      $('lsStatus').textContent=`נמצאו ${data.count.toLocaleString()} פסוקים שמתחילים ב-${data.start_letter} ומסתיימים ב-${data.end_letter}`;
-      $('lsResults').innerHTML=data.matches.map(m=>{
-        // Highlight first and last letters
-        const words=m.verse_text.split(/[\s\u05BE]+/);
-        if(words.length>0){
-          const first=words[0];
-          const last=words[words.length-1];
-          words[0]=`<mark>${first}</mark>`;
-          if(words.length>1)words[words.length-1]=`<mark>${last}</mark>`;
-        }
-        return `<div class="hit">
-          <div><span class="ref">${m.ref}</span><span class="pill">${m.first_letter}...${m.last_letter}</span></div>
-          <div class="text">${words.join(' ')}</div>
-          <div class="meta">מילה ראשונה: <b>${m.first_word}</b> | מילה אחרונה: <b>${m.last_word}</b></div>
-        </div>`;
-      }).join('');
+       $('lsStatus').textContent=`נמצאו ${data.count.toLocaleString()} פסוקים שמתחילים ב-${data.start_letter} ומסתיימים ב-${data.end_letter}`;
+       $('lsResults').innerHTML=data.matches.map(m=>{
+         const dv=displayText(m.verse_text);
+         const words=dv.split(/\s+/).filter(w=>w);
+         if(words.length>0){
+           words[0]=`<mark>${words[0]}</mark>`;
+           if(words.length>1)words[words.length-1]=`<mark>${words[words.length-1]}</mark>`;
+         }
+         return `<div class="hit">
+           <div><span class="ref">${m.ref}</span><span class="pill">${m.first_letter}...${m.last_letter}</span></div>
+           <div class="text">${words.join(' ')}</div>
+           <div class="meta">מילה ראשונה: <b>${displayText(m.first_word)}</b> | מילה אחרונה: <b>${displayText(m.last_word)}</b></div>
+         </div>`;
+       }).join('');
     }
   }catch(e){
     $('lsErr').textContent=e.message||'שגיאה';$('lsErr').style.display='block';
@@ -1290,161 +1397,217 @@ async function doLetterSearch(){
 $('lsBtn').onclick=doLetterSearch;
 
 
-// Same Initial Letter Runs (consecutive words with same first letter)
-function setSilRange(min, max){
-  $('silMin').value = min;
-  $('silMax').value = max;
+// ── Text mode ──────────────────────────────────────────────────────────────
+let textMode = localStorage.getItem('textMode') || 'plain';
+function stripNikud(s){
+  if(!s) return '';
+  let t = s;
+  // 1. NBSP and maqaf -> regular space (so kethib/qere split into separate tokens)
+  t = t.replace(/ /g, ' ');
+  t = t.replace(/־/g, ' ');
+  // 2. Kethib (*word) is the actual written form — KEEP. Qere (**word) is the read variant — DROP.
+  t = t.replace(/\*\*\S*/g, '');           // drop **qere
+  t = t.replace(/\*(\S+)/g, '$1');          // keep *kethib (strip leading *)
+  // 3. Strip scribal bracket annotations: [c],[t],[d],[m],[y],[q],[4]-[8],[X], etc.
+  t = t.replace(/\[[a-zA-Z0-9]+\]/g, '');
+  // 4. Strip diacritics + invisible chars: nikud/trope (U+0591–U+05C7), CGJ (U+034F),
+  //    zero-width (U+200B–U+200F), bidi (U+202A–U+202E), word-joiner (U+2060), BOM (U+FEFF)
+  t = t.replace(/[֑-ׇ͏​-‏‪-‮⁠﻿]/g, '');
+  // 5. Keep only Hebrew consonants + spaces + newlines
+  t = t.replace(/[^א-ת \n]/g, '');
+  // 6. Remove trailing standalone parasha-section markers (פ / ס)
+  t = t.replace(/ [ספ]$/, '');
+  return t.replace(/ +/g, ' ').trim();
+}
+function displayText(s){ return textMode==='plain' ? stripNikud(s) : (s||''); }
+// Highlight a single word inside a verse, respecting current text mode
+function hlWord(verse,word){
+  const dv=displayText(verse); const dw=displayText(word);
+  if(!dw) return dv;
+  const esc=dw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return dv.replace(new RegExp(esc,'g'),m=>`<mark>${m}</mark>`);
+}
+// Highlight a consonant-query inside a verse (text-search / atbash style)
+function hlQuery(verse,query){
+  const dv=displayText(verse); const dq=stripNikud(query);
+  if(!dq) return dv;
+  const letters=dq.split('').map(l=>l.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+  const pat=textMode==='nikud'?letters.map(l=>l+'[֑-ׇ]*').join(''):letters.join('');
+  try{return dv.replace(new RegExp(pat,'g'),m=>`<mark>${m}</mark>`);}catch{return dv;}
+}
+// Tokenize verse_text into display-ready words aligned with grams.start_word indexing.
+// Strips diacritics, splits on maqaf+space, drops non-Hebrew tokens. Sofit forms preserved.
+function _displayTokens(verseText){
+  let t=verseText||'';
+  t=t.replace(/\u00A0/g,' ');                              // NBSP -> space
+  t=t.replace(/\*\*\S*/g,'');                               // drop **qere
+  t=t.replace(/\*(\S+)/g,'$1');                             // keep *kethib (strip *)
+  t=t.replace(/\[[a-zA-Z0-9]+\]/g,'');                      // strip [c],[t] etc.
+  t=t.replace(/[\u0591-\u05BD\u05BF-\u05C7\u034F\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g,'');
+  t=t.replace(/[^\u05D0-\u05EA \u05BE\n]/g,'');
+  t=t.replace(/\u05BE/g,' ');
+  return t.split(/\s+/).filter(tok=>/[\u05D0-\u05EA]/.test(tok));
+}
+function extractDisplayWord(verseText, wordIndex){
+  if(!verseText||!wordIndex) return '';
+  return _displayTokens(verseText)[wordIndex-1]||'';
+}
+function extractDisplayPhrase(verseText, startWord, endWord){
+  if(!verseText||!startWord) return '';
+  const tokens=_displayTokens(verseText);
+  const s=startWord-1, e=endWord?endWord-1:s;
+  return tokens.slice(s,e+1).join(' ').trim();
+}
+function toggleTextMode(){
+  textMode = textMode==='plain' ? 'nikud' : 'plain';
+  localStorage.setItem('textMode', textMode);
+  const btn=$('textModeBtn');
+  btn.textContent = textMode==='plain' ? 'ניקוד: כבוי' : 'ניקוד: פועל';
+  btn.style.background = textMode==='nikud' ? 'rgba(96,165,250,.35)' : 'rgba(255,255,255,.1)';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const btn=$('textModeBtn');
+  if(textMode==='nikud'){btn.textContent='ניקוד: פועל';btn.style.background='rgba(96,165,250,.35)';}
+});
+// ──────────────────────────────────────────────────────────────────────────
+
+// Letter selector for same-position runs
+const HEB_LETTERS=['א','ב','ג','ד','ה','ו','ז','ח','ט','י','כ','ל','מ','נ','ס','ע','פ','צ','ק','ר','ש','ת'];
+function createLetterSelector(id){
+  const container=document.getElementById(id);
+  if(!container) return null;
+  const btn=document.createElement('button');
+  btn.type='button'; btn.className='book-select-btn';
+  btn.innerHTML='<span>כל האותיות</span><span>▼</span>';
+  const dropdown=document.createElement('div');
+  dropdown.className='book-select-dropdown'; dropdown.style.width='220px';
+  const allItem=document.createElement('div'); allItem.className='book-select-item all';
+  const allCb=document.createElement('input'); allCb.type='checkbox'; allCb.id=id+'-all'; allCb.checked=true;
+  const allLbl=document.createElement('label'); allLbl.htmlFor=id+'-all'; allLbl.textContent='כל האותיות';
+  allItem.append(allCb,allLbl); dropdown.appendChild(allItem);
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:6px';
+  HEB_LETTERS.forEach(letter=>{
+    const item=document.createElement('div'); item.className='book-select-item'; item.style.padding='4px 6px';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.id=id+'-l-'+letter; cb.value=letter; cb.checked=true;
+    const lbl=document.createElement('label'); lbl.htmlFor=id+'-l-'+letter; lbl.style.fontSize='18px'; lbl.textContent=letter;
+    item.append(cb,lbl); grid.appendChild(item);
+  });
+  dropdown.appendChild(grid);
+  container.innerHTML=''; container.appendChild(btn); container.appendChild(dropdown);
+  container.className='book-select';
+  btn.onclick=e=>{e.stopPropagation();dropdown.classList.toggle('open');};
+  document.addEventListener('click',e=>{if(!container.contains(e.target))dropdown.classList.remove('open');});
+  function updateAllCb(){
+    const cbs=dropdown.querySelectorAll('input[type="checkbox"][value]');
+    const checked=Array.from(cbs).filter(cb=>cb.checked).length;
+    allCb.checked=checked===cbs.length; allCb.indeterminate=checked>0&&checked<cbs.length;
+    const span=btn.querySelector('span');
+    if(checked===0) span.textContent='ללא אותיות';
+    else if(checked===cbs.length) span.textContent='כל האותיות';
+    else span.textContent=Array.from(cbs).filter(cb=>cb.checked).map(cb=>cb.value).join('');
+  }
+  dropdown.addEventListener('change',e=>{
+    if(!e.target.matches('input[type="checkbox"]')) return;
+    if(e.target.id===id+'-all') dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.checked=e.target.checked);
+    updateAllCb();
+  });
+  return {getSelected(){
+    const cbs=dropdown.querySelectorAll('input[type="checkbox"][value]');
+    const sel=Array.from(cbs).filter(cb=>cb.checked).map(cb=>cb.value);
+    return sel.length===HEB_LETTERS.length?[]:sel;
+  }};
 }
 
+// Same Letter Position Runs
+const silPositionLabels={1:'ראשונה',2:'שנייה',3:'שלישית',4:'אחרונה'};
 async function doSameInitialRuns(){
-  const letter = $('silLetter').value;
-  const len = parseInt($('silLength').value) || 8;
-  const min_len = len;
-  const max_len = len;
-
-  $('silBtn').disabled = true;
-  $('silStatus').textContent = 'מחפש...';
-  $('silResults').innerHTML = '';
-  $('silErr').style.display = 'none';
-  $('silStats').style.display = 'none';
-
+  const selectedLetters=silLetterSelector?silLetterSelector.getSelected():[];
+  const position=parseInt($('silPosition').value)||1;
+  const min_len=parseInt($('silLength').value)||3;
+  $('silBtn').disabled=true; $('silStatus').textContent='מחפש...';
+  $('silResults').innerHTML=''; $('silErr').style.display='none'; $('silStats').style.display='none';
   try{
-    const params = new URLSearchParams({ letter, min_len, max_len });
-    const books = silBookSelector ? silBookSelector.getSelected() : [];
-    if(books.length) params.set('books', books.join(','));
-
-    const response = await fetch(`/same-initial-runs?${params}`);
-    if(!response.ok){
-      const err = await response.json().catch(()=>({detail:'שגיאה בשרת'}));
-      throw new Error(err.detail || 'שגיאה בשרת');
-    }
-    const data = await response.json();
-
-    if(!data || data.total_runs === undefined){
-      throw new Error('תגובה לא תקינה מהשרת');
-    }
-
-    $('silStats').innerHTML = \`
-      <div class="stat"><b>\${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
-      <div class="stat"><b>\${data.letter}</b><span>אות</span></div>
-      <div class="stat"><b>\${data.min_length}-\${data.max_length}</b><span>אורך</span></div>
-    \`;
-    $('silStats').style.display = 'flex';
-
-    if(data.total_runs === 0){
-      $('silStatus').textContent = \`לא נמצאו רצפים של \${min_len}-\${max_len} מילים שמתחילים ב-\${letter}\`;
+    const letter=selectedLetters.length===1?selectedLetters[0]:'ALL';
+    const params=new URLSearchParams({letter,min_len,max_len:999,position});
+    if(selectedLetters.length>1) selectedLetters.forEach(l=>params.append('letters',l));
+    const books=silBookSelector?silBookSelector.getSelected():[];
+    if(books.length) books.forEach(b=>params.append('books',b));
+    const response=await fetch(`/same-initial-runs?${params}`);
+    if(!response.ok){const err=await response.json().catch(()=>({detail:'שגיאה בשרת'}));throw new Error(err.detail||'שגיאה בשרת');}
+    const data=await response.json();
+    if(!data||data.total_runs===undefined) throw new Error('תגובה לא תקינה מהשרת');
+    const posLabel=silPositionLabels[position]||position;
+    const lettersLabel=selectedLetters.length===0?'כל האותיות':selectedLetters.join('');
+    $('silStats').innerHTML=`
+      <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
+      <div class="stat"><b>${lettersLabel}</b><span>אות</span></div>
+      <div class="stat"><b>${posLabel}</b><span>מיקום</span></div>
+      <div class="stat"><b>${min_len}+</b><span>אורך מינימלי</span></div>`;
+    $('silStats').style.display='flex';
+    if(data.total_runs===0){
+      $('silStatus').textContent='לא נמצאו רצפים';
     }else{
-      $('silStatus').textContent = \`נמצאו \${data.total_runs.toLocaleString()} רצפים של \${min_len}-\${max_len} מילים שמתחילים ב-\${letter}\`;
-      $('silResults').innerHTML = data.runs.map(r => {
-        const highlighted = r.run_words.map(w => \`<mark>\${w}</mark>\`).join(' ');
-        return \`<div class="hit">
-          <div><span class="ref">\${r.ref}</span><span class="pill">\${r.run_length} מילים</span></div>
-          <div class="text">\${highlighted}</div>
-          <div class="meta">פסוק: \${r.verse_text}</div>
-        </div>\`;
+      $('silStatus').textContent=`נמצאו ${data.total_runs.toLocaleString()} רצפים`;
+      $('silResults').innerHTML=data.runs.map(r=>{
+        const highlighted=r.run_words.map(w=>`<mark>${displayText(w)}</mark>`).join(' ');
+        return `<div class="hit">
+          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span><span class="pill" style="background:#fef3c7;color:#92400e">${r.letter} · ${posLabel}</span></div>
+          <div class="text">${highlighted}</div>
+          <div class="meta">פסוק: ${displayText(r.verse_text)}</div>
+        </div>`;
       }).join('');
     }
-  }catch(e){
-    $('silErr').textContent = e.message || 'שגיאה';
-    $('silErr').style.display = 'block';
-  }
-  $('silBtn').disabled = false;
+  }catch(e){$('silErr').textContent=e.message||'שגיאה';$('silErr').style.display='block';}
+  $('silBtn').disabled=false;
 }
+$('silBtn').onclick=doSameInitialRuns;
 
-  $('silBtn').disabled = true;
-  $('silStatus').textContent = 'מחפש...';
-  $('silResults').innerHTML = '';
-  $('silErr').style.display = 'none';
-  $('silStats').style.display = 'none';
-
+// Gematria Rising / Falling / Equal Runs
+async function doGematriaRuns(){
+  const direction=$('grDirection').value;
+  const min_len=parseInt($('grLength').value)||2;
+  $('grBtn').disabled=true; $('grStatus').textContent='מחפש...';
+  $('grResults').innerHTML=''; $('grErr').style.display='none'; $('grStats').style.display='none';
   try{
-    // Validate letter
-    if(letter === 'ALL' || letter.length !== 1){
-      throw new Error('בחר אות אחת עבור אות ראשונה, או השתמש בחיפוש טקסט multipletology');
-    }
-
-    const params = new URLSearchParams({ letter, min_len, max_len });
-    const books = silBookSelector ? silBookSelector.getSelected() : [];
-    if(books.length) params.set('books', books.join(','));
-
-    const response = await fetch(`/same-initial-runs?${params}`);
-    if(!response.ok){
-      const err = await response.json().catch(()=>({detail:'שגיאה בשרת'}));
-      throw new Error(err.detail || 'שגיאה בשרת');
-    }
-    const data = await response.json();
-
-    if(!data || data.total_runs === undefined){
-      throw new Error('תגובה לא תקינה מהשרת');
-    }
-
-    $('silStats').innerHTML = `
+    const params=new URLSearchParams({direction,min_len,max_len:999});
+    const books=grBookSelector?grBookSelector.getSelected():[];
+    if(books.length) books.forEach(b=>params.append('books',b));
+    const response=await fetch(`/gematria-runs?${params}`);
+    if(!response.ok){const err=await response.json().catch(()=>({detail:'שגיאה בשרת'}));throw new Error(err.detail||'שגיאה בשרת');}
+    const data=await response.json();
+    const dirLabel=direction==='up'?'עולה':direction==='down'?'יורדת':direction==='equal'?'ערך זהה':'עולה/יורדת';
+    $('grStats').innerHTML=`
       <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
-      <div class="stat"><b>${data.letter}</b><span>אות</span></div>
-      <div class="stat"><b>${data.min_length}-${data.max_length}</b><span>אורך</span></div>
-    `;
-    $('silStats').style.display = 'flex';
-
-    if(data.total_runs === 0){
-      $('silStatus').textContent = `לא נמצאו רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
+      <div class="stat"><b>${dirLabel}</b><span>כיוון</span></div>
+      <div class="stat"><b>${min_len}+</b><span>אורך מינימלי</span></div>`;
+    $('grStats').style.display='flex';
+    if(data.total_runs===0){
+      $('grStatus').textContent='לא נמצאו רצפים';
     }else{
-      $('silStatus').textContent = `נמצאו ${data.total_runs.toLocaleString()} רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
-      $('silResults').innerHTML = data.runs.map(r => {
-        const highlighted = r.run_words.map(w => `<mark>${w}</mark>`).join(' ');
+      $('grStatus').textContent=`נמצאו ${data.total_runs.toLocaleString()} רצפים`;
+      $('grResults').innerHTML=data.runs.map(r=>{
+        const arrow=r.direction==='up'?'↑':r.direction==='down'?'↓':'=';
+        const dirColor=r.direction==='up'?'#15803d':r.direction==='equal'?'#1d4ed8':'#b91c1c';
+        const wordPills=r.run_words.map((w,i)=>
+          `<span style="display:inline-flex;flex-direction:column;align-items:center;margin:0 4px">
+            <mark style="font-size:15px">${displayText(w)}</mark>
+            <span style="font-size:11px;color:#6b7280">${r.run_values[i]}</span>
+          </span>`
+        ).join(`<span style="color:${dirColor};font-size:16px;margin:0 2px">${arrow}</span>`);
         return `<div class="hit">
-          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span></div>
-          <div class="text">${highlighted}</div>
-          <div class="meta">פסוק: ${r.verse_text}</div>
+          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span>
+            <span class="pill" style="background:#f0fdf4;color:${dirColor}">${arrow} ${r.run_values[0]}→${r.run_values[r.run_values.length-1]}</span></div>
+          <div class="text" style="margin-top:8px;display:flex;flex-wrap:wrap;align-items:center">${wordPills}</div>
+          <div class="meta" style="margin-top:6px">פסוק: ${displayText(r.verse_text)}</div>
         </div>`;
       }).join('');
     }
-  }catch(e){
-    $('silErr').textContent = e.message || 'שגיאה';
-    $('silErr').style.display = 'block';
-  }
-  $('silBtn').disabled = false;
+  }catch(e){$('grErr').textContent=e.message||'שגיאה';$('grErr').style.display='block';}
+  $('grBtn').disabled=false;
+}
+$('grBtn').onclick=doGematriaRuns;
 
-
-  $('silBtn').disabled = true;
-  $('silStatus').textContent = 'מחפש...';
-  $('silResults').innerHTML = '';
-  $('silErr').style.display = 'none';
-  $('silStats').style.display = 'none';
-
-  try{
-    const params = new URLSearchParams({ letter, min_len, max_len });
-    const books = silBookSelector ? silBookSelector.getSelected() : [];
-    if(books.length) params.set('books', books.join(','));
-
-    const data = await(await fetch(`/same-initial-runs?${params}`)).json();
-
-    $('silStats').innerHTML = `
-      <div class="stat"><b>${data.total_runs.toLocaleString()}</b><span>רצפים נמצאו</span></div>
-      <div class="stat"><b>${data.letter}</b><span>אות</span></div>
-      <div class="stat"><b>${data.min_length}-${data.max_length}</b><span>אורך</span></div>
-    `;
-    $('silStats').style.display = 'flex';
-
-    if(data.total_runs === 0){
-      $('silStatus').textContent = `לא נמצאו רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
-    }else{
-      $('silStatus').textContent = `נמצאו ${data.total_runs.toLocaleString()} רצפים של ${min_len}-${max_len} מילים שמתחילים ב-${letter}`;
-      $('silResults').innerHTML = data.runs.map(r => {
-        const highlighted = r.run_words.map(w => `<mark>${w}</mark>`).join(' ');
-        return `<div class="hit">
-          <div><span class="ref">${r.ref}</span><span class="pill">${r.run_length} מילים</span></div>
-          <div class="text">${highlighted}</div>
-          <div class="meta">פסוק: ${r.verse_text}</div>
-        </div>`;
-      }).join('');
-    }
-  }catch(e){
-    $('silErr').textContent = e.message || 'שגיאה';
-    $('silErr').style.display = 'block';
-  }
-  $('silBtn').disabled = false;
-
-$('silBtn').onclick = doSameInitialRuns;
 
 
 // Kabbalah Terms Search
@@ -1488,11 +1651,9 @@ async function doKabbalahSearch(){
       $('kbStatus').textContent=`נמצאו ${totalCount.toLocaleString()} מופעים ב-${data.length} מונחים`;
       $('kbResults').innerHTML=data.map(termData=>{
         const locationsHtml=termData.locations.slice(0,20).map(loc=>{
-          const escaped=loc.word_text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-          const highlighted=loc.verse_text.replace(new RegExp(escaped,'g'),`<mark>${loc.word_text}</mark>`);
           return `<div style="padding:6px 0;border-bottom:1px solid #eee">
             <span class="ref" style="font-size:12px">${loc.ref}</span>
-            <div class="text" style="font-size:13px">${highlighted}</div>
+            <div class="text" style="font-size:13px">${hlWord(loc.verse_text,loc.word_text)}</div>
           </div>`;
         }).join('');
         const moreText=termData.count>20?`<div class="hint">...ועוד ${termData.count-20} מופעים</div>`:'';
@@ -1550,15 +1711,10 @@ async function doTextSearch(){
       const showing=data.hits.length;
       $('tsStatus').textContent=`מציג ${showing.toLocaleString()} מתוך ${data.count.toLocaleString()} מופעים`;
       $('tsResults').innerHTML=data.hits.map(hit=>{
-        // Highlight matched text in verse
-        const letters=data.query.split('');
-        const pattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
-        const regex=new RegExp(pattern,'g');
-        const highlighted=hit.text.replace(regex,m=>`<mark>${m}</mark>`);
         const occInfo=hit.total_in_verse>1?`<span class="pill">מופע ${hit.occurrence}/${hit.total_in_verse}</span>`:'';
         return `<div class="hit">
           <div><span class="ref">${hit.ref}</span>${occInfo}</div>
-          <div class="text">${highlighted}</div>
+          <div class="text">${hlQuery(hit.text,data.query)}</div>
         </div>`;
       }).join('');
     }
@@ -1600,14 +1756,10 @@ async function doAtbash(){
       $('abSearchStatus').textContent='המילה "'+data.atbash_text+'" לא נמצאה בתנ״ך ('+searchData.count+' מופעים)';
     }else{
       $('abSearchStatus').textContent='נמצאו '+searchData.count.toLocaleString()+' מופעים של "'+data.atbash_text+'" בתנ״ך ('+searchData.verse_count+' פסוקים)';
-      const letters=q.split('');
-      const pattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
       $('abSearchHits').innerHTML=searchData.hits.map(hit=>{
-        const regex=new RegExp(pattern,'g');
-        const highlighted=hit.text.replace(regex,m=>`<mark>${m}</mark>`);
         return `<div class="hit">
           <div><span class="ref">${hit.ref}</span></div>
-          <div class="text">${highlighted}</div>
+          <div class="text">${hlQuery(hit.text,q)}</div>
         </div>`;
       }).join('');
     }
@@ -1648,7 +1800,7 @@ async function doTopWords(){
         const barW=Math.round(e.count/data.entries[0].count*100);
         return `<tr style="border-bottom:1px solid #f3f4f6;cursor:pointer" onclick="searchGem(${e.gematria},'${n===1?'word':'gram'}')">
           <td style="padding:6px;color:#6b7280">${e.rank}</td>
-          <td style="padding:6px;font-weight:600"><div style="position:relative"><div style="position:absolute;top:0;right:0;bottom:0;width:${barW}%;background:#eff6ff;border-radius:4px;z-index:0"></div><span style="position:relative;z-index:1">${e.text}</span></div></td>
+          <td style="padding:6px;font-weight:600"><div style="position:relative"><div style="position:absolute;top:0;right:0;bottom:0;width:${barW}%;background:#eff6ff;border-radius:4px;z-index:0"></div><span style="position:relative;z-index:1">${displayText(e.text)}</span></div></td>
           <td style="padding:6px;color:#2563eb;font-weight:600">${e.count.toLocaleString()}</td>
           <td style="padding:6px;color:#6b7280">${e.gematria}</td>
         </tr>`;
@@ -1695,14 +1847,10 @@ async function doRepeatedWords(){
       }else{
         $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפים של מילים חוזרות`;
         $('rwResults').innerHTML=data.matches.map(m=>{
-          const letters=m.word.split('');
-          const singleWordPattern=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
-          const fullPattern=Array(m.count).fill(singleWordPattern).join('[\\s\u05BE]+');
-          const regex=new RegExp(fullPattern,'g');
-          const highlighted=m.verse_text.replace(regex,match=>`<mark>${match}</mark>`);
           const countLabel=m.count===2?'כפילות':m.count===3?'משולשת':m.count+' חזרות';
+          const highlighted=hlWord(m.verse_text,m.word);
           return `<div class="hit">
-            <div><span class="ref">${m.ref}</span><span class="pill">${m.word} × ${m.count}</span><span class="pill">${countLabel}</span></div>
+            <div><span class="ref">${m.ref}</span><span class="pill">${displayText(m.word)} × ${m.count}</span><span class="pill">${countLabel}</span></div>
             <div class="text">${highlighted}</div>
           </div>`;
         }).join('');
@@ -1729,19 +1877,14 @@ async function doRepeatedWords(){
       }else{
         $('rwStatus').textContent=`נמצאו ${data.total_matches.toLocaleString()} רצפי מילים דומות`;
         $('rwResults').innerHTML=data.matches.map(m=>{
-          // Build pills for each word in the sequence
-          const wordPills=m.words.map(w=>`<span class="pill" style="font-size:13px">${w}</span>`).join(' ');
-          // Show common letters between pairs
+          const wordPills=m.words.map(w=>`<span class="pill" style="font-size:13px">${displayText(w)}</span>`).join(' ');
           const pairInfo=m.common_letters.map((cl,idx)=>{
-            return `<span style="font-size:11px;color:#6b7280">${m.words[idx]}↔${m.words[idx+1]}: <b>${cl}</b></span>`;
+            return `<span style="font-size:11px;color:#6b7280">${displayText(m.words[idx])}↔${displayText(m.words[idx+1])}: <b>${cl}</b></span>`;
           }).join(' | ');
-          // Highlight the similar words in verse text
-          let highlighted=m.verse_text;
+          let highlighted=displayText(m.verse_text);
           for(const w of m.words){
-            const letters=w.split('');
-            const pat=letters.map(l=>l+'[\u0591-\u05C7]*').join('');
-            const regex=new RegExp('(?<=[\\s\u05BE]|^)'+pat+'(?=[\\s\u05BE]|$)','g');
-            highlighted=highlighted.replace(regex,match=>`<mark>${match}</mark>`);
+            const dw=displayText(w);
+            if(dw){const esc=dw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');highlighted=highlighted.replace(new RegExp(esc,'g'),match=>`<mark>${match}</mark>`);}
           }
           return `<div class="hit">
             <div><span class="ref">${m.ref}</span><span class="pill">${m.length} מילים</span></div>
@@ -1766,6 +1909,9 @@ function initBookSelectors(){
   bookSelector=createBookSelector('bookSelect');
   wcBookSelector=createBookSelector('wcBookSelect');
   silBookSelector=createBookSelector('silBookSelect');
+  sofimBookSelector=createBookSelector('sofimBookSelect');
+  silLetterSelector=createLetterSelector('silLetterSelect');
+  grBookSelector=createBookSelector('grBookSelect');
   rtBookSelector=createBookSelector('rtBookSelect');
   elsBookSelector=createBookSelector('elsBookSelect');
   tsBookSelector=createBookSelector('tsBookSelect');
@@ -1780,121 +1926,6 @@ if(document.readyState==='loading'){
 }else{
   initBookSelectors();
 }
-</script>
-
-<!-- Live Log Viewer Panel -->
-<div id="logPanel" style="display:none; position:fixed; top:0; right:0; width:90%%; max-width:600px; height:100vh; background:#111; color:#0f0; font-family:monospace; font-size:11px; padding:10px; overflow:auto; z-index:9999; border-left:2px solid #333;">
-  <div style="position:sticky; top:0; background:#111; padding:8px 0; border-bottom:1px solid #333; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-    <h3 style="margin:0; color:#0f0;"> Live Logs </h3>
-    <div>
-      <select id="logLevel" style="background:#222; color:#0f0; border:1px solid #444; padding:4px 8px; font-size:12px; border-radius:4px;">
-        <option value="ALL">All</option>
-        <option value="INFO" selected>INFO+</option>
-        <option value="WARNING">WARNING+</option>
-        <option value="ERROR">ERROR+</option>
-        <option value="DEBUG">DEBUG</option>
-      </select>
-      <button id="logRefresh" style="background:#333; color:#0f0; border:1px solid #555; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">Refresh</button>
-      <button id="logClear" style="background:#333; color:#f00; border:1px solid #555; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">Clear</button>
-      <button id="logClose" style="background:#c00; color:#fff; border:none; padding:4px 12px; font-size:12px; border-radius:4px; cursor:pointer;">X</button>
-    </div>
-  </div>
-  <pre id="logContent" style="white-space:pre-wrap; word-break:break-all; margin:0; line-height:1.4;"></pre>
-  <div id="logStatus" style="position:sticky; bottom:0; background:#111; padding:8px 0; border-top:1px solid #333; color:#888; font-size:11px;"></div>
-</div>
-
-<script>
-(function() {
-  consoleLog = console.log;
-  consoleError = console.error;
-  consoleWarn = console.warn;
-  let logEntries = [];
-  let refreshTimer = null;
-
-  function parseLogLine(line) {
-    // Pattern: 2026-04-29 09:57:31.334 [INFO    ] tanakh.request: REQ GET /
-    const m = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\s*\] (\S+): (.*)$/);
-    if (m) {
-      return { time: m[1], level: m[2], module: m[3], msg: m[4] };
-    }
-    return { raw: line };
-  }
-
-  function getFilteredLogs() {
-    const level = document.getElementById('logLevel').value;
-    const levels = { 'ALL':0, 'DEBUG':1, 'INFO':2, 'WARNING':3, 'ERROR':4 };
-    const minLevel = levels[level];
-    return logEntries.filter(entry => {
-      if (!entry.level) return true;
-      const entryLevel = entry.level === 'DEBUG' ? 1 : entry.level === 'INFO' ? 2 : entry.level === 'WARNING' ? 3 : 4;
-      return entryLevel >= minLevel;
-    }).slice(-200);
-  }
-
-  function renderLogs() {
-    const container = document.getElementById('logContent');
-    const lines = getFilteredLogs();
-    container.innerHTML = lines.map(e => {
-      const color = e.level === 'ERROR' ? '#f44' : e.level === 'WARNING' ? '#fb0' : e.level === 'DEBUG' ? '#88f' : '#0f0';
-      const timeStr = e.time ? `<span style="color:#666">${e.time}</span>` : '';
-      const levelStr = e.level ? `<span style="color:${color};font-weight:bold">[${e.level}]</span>` : '';
-      const moduleStr = e.module ? `<span style="color:#0af">${e.module}</span>` : '';
-      const msg = e.msg ? e.msg.replace(/</g,'&lt;').replace(/>/g,'&gt;') : e.raw;
-      return `${timeStr} ${levelStr} ${moduleStr} ${msg}`;
-    }).join('\n');
-    document.getElementById('logStatus').textContent = `Showing ${lines.length} of ${logEntries.length} entries`;
-  }
-
-  async function fetchLogs() {
-    try {
-      const resp = await fetch('/logs?limit=200');
-      const data = await resp.json();
-      if (data.lines) {
-        logEntries = data.lines.map(parseLogLine).filter(e => e);
-        renderLogs();
-      }
-    } catch(e) { consoleError('Log fetch error:', e); }
-  }
-
-  function startAutoRefresh() {
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(fetchLogs, 2000);
-  }
-
-  // UI controls
-  document.getElementById('logClose').onclick = () => {
-    document.getElementById('logPanel').style.display = 'none';
-    clearInterval(refreshTimer);
-  };
-  document.getElementById('logRefresh').onclick = () => { fetchLogs(); };
-  document.getElementById('logClear').onclick = () => { logEntries = []; renderLogs(); };
-  document.getElementById('logLevel').onchange = () => { renderLogs(); startAutoRefresh(); };
-
-  // Intercept console and capture
-  const origLog = console.log, origError = console.error, origWarn = console.warn;
-  function capture(level, args) {
-    const msg = Array.from(args).map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    logEntries.push({ level, module: 'client', msg: msg, time: new Date().toISOString().replace('T',' ').substr(0,23) });
-    origLog.apply(console, args);
-  }
-  console.log = function(...args) { capture('INFO', args); };
-  console.error = function(...args) { capture('ERROR', args); };
-  console.warn = function(...args) { capture('WARNING', args); };
-
-  // Show panel manually via ?logs=true or call from console
-  if (window.location.search.includes('logs=true')) {
-    document.getElementById('logPanel').style.display = 'block';
-    startAutoRefresh();
-  }
-
-  // Expose global to show logs
-  window.showLogs = function() {
-    document.getElementById('logPanel').style.display = 'block';
-    startAutoRefresh();
-  };
-
-  consoleLog('Log panel initialized. Call showLogs() to open, or append ?logs=true to URL.');
-})();
 </script>
 
 </body>

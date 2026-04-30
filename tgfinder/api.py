@@ -2,10 +2,6 @@ from __future__ import annotations
 import re
 from os import environ
 
-# Global logging setup
-from .logging_config import setup_logging
-setup_logging(level=environ.get("LOG_LEVEL", "INFO"))
-
 
 from pathlib import Path
 from typing import List, Optional, Literal, Dict, Any
@@ -31,6 +27,37 @@ logger = get_logger("api")
 def _clean(row) -> str:
     """Re-normalize from original text to fix DB maqaf bug (words joined instead of split)."""
     return normalize_hebrew(row["text"])
+
+
+# Strips: nikud/trope (U+0591-U+05BD,U+05BF-U+05C7), CGJ (U+034F),
+# zero-width chars (U+200B-U+200F), bidi (U+202A-U+202E), word joiner (U+2060), BOM (U+FEFF).
+# Maqaf (U+05BE) preserved so caller can split on it.
+_DIACRITICS_RE = re.compile(r'[֑-ֽֿ-ׇ͏​-‏‪-‮⁠﻿]')
+_HAS_HEBREW_RE = re.compile(r'[א-ת]')
+_BRACKET_RE = re.compile(r'\[[a-zA-Z0-9]+\]')
+
+def _strip_diacritics(text: str) -> str:
+    """Strip diacritics + scribal markup; keep consonants, sofit, and maqaf."""
+    t = text.replace('\xa0', ' ')           # NBSP -> space
+    t = re.sub(r'\*\*\S*', '', t)            # drop qere variant (**word)
+    t = re.sub(r'\*(\S+)', r'\1', t)         # keep kethib (strip leading *)
+    t = _BRACKET_RE.sub('', t)               # strip [c],[t],[d] scribal annotations
+    t = _DIACRITICS_RE.sub('', t)            # strip nikud/trope/invisible chars
+    t = re.sub(r'[^א-ת ־\n]', '', t)        # keep only Hebrew letters + spaces + maqaf
+    return re.sub(r'\s+', ' ', t).strip()
+
+def _display_words_split(verse_text: str) -> list:
+    """Words for same-initial-runs: maqaf→space (aligns with normalize_hebrew split), sofit kept."""
+    t = _strip_diacritics(verse_text)
+    t = t.replace('־', ' ')
+    return [w for w in t.split() if w]
+
+def _display_words_joined(verse_text: str) -> list:
+    """Words aligned with grams.start_word (split on maqaf+space, sofit kept)."""
+    t = _strip_diacritics(verse_text)
+    t = t.replace('־', ' ')
+    tokens = t.split()
+    return [tok for tok in tokens if _HAS_HEBREW_RE.search(tok)]
 
 
 from contextlib import asynccontextmanager
@@ -62,6 +89,8 @@ class HitOut(BaseModel):
     gematria: int
     match_text: Optional[str] = None
     match_range: Optional[str] = None
+    word_index: Optional[int] = None
+    end_word_index: Optional[int] = None
 
 _UI_PATH = Path(__file__).with_name("ui.html")
 
@@ -1313,9 +1342,11 @@ class SameInitialRunsResult(BaseModel):
 
 @app.get("/same-initial-runs", response_model=SameInitialRunsResult)
 def api_same_initial_runs(
-    letter: str = Query(..., min_length=1, max_length=3, description="אות ראשונה (א-ת) או ALL לכל האותיות"),
+    letter: str = Query("ALL", min_length=1, max_length=3, description="אות (א-ת) או ALL לכל האותיות"),
+    letters: Optional[List[str]] = Query(None, description="רשימת אותיות לסינון (מרובות)"),
     min_len: int = Query(3, ge=2, le=10, description="אורך מינימלי רצף (2-10)"),
-    max_len: int = Query(8, ge=2, le=20, description="אורך מקסימלי רצף (2-20)"),
+    max_len: int = Query(8, ge=2, le=999, description="אורך מקסימלי רצף"),
+    position: int = Query(1, ge=1, le=4, description="מיקום האות במילה: 1=ראשונה, 2=שנייה, 3=שלישית, 4=אחרונה"),
     books: Optional[List[str]] = Query(None, description="רשימת ספרים לסינון (אנגלית)"),
     db: str = Query(default=None),
 ):
@@ -1356,38 +1387,59 @@ def api_same_initial_runs(
     
     cur = conn.execute(sql, tuple(params_list))
     matches = []
-    # Handle "ALL" special case: match any starting letter
-    if letter.strip().upper() == "ALL":
-        target_letter = None
+    # Build the set of target letters (None = all)
+    if letters:
+        target_letters = {normalize_sofit(l.strip()) for l in letters if l.strip()}
+    elif letter.strip().upper() == "ALL":
+        target_letters = None
     else:
-        target_letter = normalize_sofit(letter.strip())
+        target_letters = {normalize_sofit(letter.strip())}
+
+    def get_pos_letter(word: str, pos: int) -> Optional[str]:
+        """Return the letter at position pos (1-based; 4=last) in word, or None if too short."""
+        if not word:
+            return None
+        if pos == 4:  # last letter
+            return normalize_sofit(word[-1])
+        idx = pos - 1
+        if idx >= len(word):
+            return None
+        return normalize_sofit(word[idx])
 
     for row in cur:
         clean_text = _clean(row)
         words = clean_text.split()
-        
+        disp_words = _display_words_split(row["text"])
+
         i = 0
         while i < len(words):
             if not words[i]:
                 i += 1
                 continue
-            first_letter = normalize_sofit(words[i][0])
-            if target_letter is not None and first_letter != target_letter:
+            pos_letter = get_pos_letter(words[i], position)
+            if pos_letter is None:
+                i += 1
+                continue
+            if target_letters is not None and pos_letter not in target_letters:
                 i += 1
                 continue
             run_start = i
             j = i + 1
-            while j < len(words) and words[j] and normalize_sofit(words[j][0]) == first_letter:
+            while j < len(words):
+                pl = get_pos_letter(words[j], position)
+                if pl is None or pl != pos_letter:
+                    break
                 j += 1
             run_len = j - run_start
             if min_len <= run_len <= max_len:
                 hebrew_book = book_to_hebrew(row["book"])
                 ref = f"{hebrew_book} {row['chapter']}:{row['verse']}"
-                run_letter = first_letter if target_letter is None else letter
+                run_letter = pos_letter
+                safe_disp = disp_words[run_start:j] if len(disp_words) >= j else words[run_start:j]
                 matches.append(SameInitialRun(
                     ref=ref,
                     verse_text=row["text"],
-                    run_words=words[run_start:j],
+                    run_words=safe_disp,
                     letter=run_letter,
                     run_length=run_len
                 ))
@@ -1404,6 +1456,142 @@ def api_same_initial_runs(
     )
 
 
+
+
+# ============ Gematria Rising / Falling Runs ============
+
+class GematriaRun(BaseModel):
+    ref: str
+    verse_text: str
+    run_words: List[str]
+    run_values: List[int]
+    direction: str  # "up" or "down"
+    start_value: int
+    run_length: int
+
+class GematriaRunsResult(BaseModel):
+    direction: str
+    min_length: int
+    total_runs: int
+    runs: List[GematriaRun]
+
+@app.get("/gematria-runs", response_model=GematriaRunsResult)
+def api_gematria_runs(
+    direction: str = Query("both", description="up / down / both"),
+    min_len: int = Query(3, ge=2, le=10, description="אורך מינימלי"),
+    max_len: int = Query(999, ge=2, le=999, description="אורך מקסימלי"),
+    books: Optional[List[str]] = Query(None),
+    db: str = Query(default=None),
+):
+    db_path = db or environ.get("DB_PATH", "tanakh.sqlite")
+    conn = connect(db_path)
+
+    where_clause = "WHERE g.n = 1"
+    params_list: list = []
+    if books:
+        placeholders = ",".join(["?"] * len(books))
+        where_clause += f" AND g.book IN ({placeholders})"
+        params_list.extend(books)
+
+    sql = f"""
+        SELECT g.book, g.chapter, g.verse, g.start_word, g.text, g.gematria, v.text AS verse_text
+        FROM grams g
+        JOIN verses v ON v.book = g.book AND v.chapter = g.chapter AND v.verse = g.verse
+        {where_clause}
+        ORDER BY
+            CASE WHEN g.book='Genesis' THEN 1 WHEN g.book='Exodus' THEN 2 WHEN g.book='Leviticus' THEN 3
+            WHEN g.book='Numbers' THEN 4 WHEN g.book='Deuteronomy' THEN 5 WHEN g.book='Joshua' THEN 6
+            WHEN g.book='Judges' THEN 7 WHEN g.book='1 Samuel' THEN 8 WHEN g.book='2 Samuel' THEN 9
+            WHEN g.book='1 Kings' THEN 10 WHEN g.book='2 Kings' THEN 11 WHEN g.book='Isaiah' THEN 12
+            WHEN g.book='Jeremiah' THEN 13 WHEN g.book='Ezekiel' THEN 14 WHEN g.book='Hosea' THEN 15
+            WHEN g.book='Joel' THEN 16 WHEN g.book='Amos' THEN 17 WHEN g.book='Obadiah' THEN 18
+            WHEN g.book='Jonah' THEN 19 WHEN g.book='Micah' THEN 20 WHEN g.book='Nahum' THEN 21
+            WHEN g.book='Habakkuk' THEN 22 WHEN g.book='Zephaniah' THEN 23 WHEN g.book='Haggai' THEN 24
+            WHEN g.book='Zechariah' THEN 25 WHEN g.book='Malachi' THEN 26 WHEN g.book='Psalms' THEN 27
+            WHEN g.book='Proverbs' THEN 28 WHEN g.book='Job' THEN 29 WHEN g.book='Song of Songs' THEN 30
+            WHEN g.book='Ruth' THEN 31 WHEN g.book='Lamentations' THEN 32 WHEN g.book='Ecclesiastes' THEN 33
+            WHEN g.book='Esther' THEN 34 WHEN g.book='Daniel' THEN 35 WHEN g.book='Ezra' THEN 36
+            WHEN g.book='Nehemiah' THEN 37 WHEN g.book='1 Chronicles' THEN 38 WHEN g.book='2 Chronicles' THEN 39
+            ELSE 999 END, g.chapter, g.verse, g.start_word
+    """
+    cur = conn.execute(sql, tuple(params_list))
+    rows = cur.fetchall()
+    conn.close()
+
+    want_up    = direction in ("up",    "both")
+    want_down  = direction in ("down",  "both")
+    want_equal = direction == "equal"
+
+    matches: list[GematriaRun] = []
+
+    from itertools import groupby
+    def verse_key(r): return (r["book"], r["chapter"], r["verse"])
+
+    for _, verse_rows in groupby(rows, key=verse_key):
+        words_in_verse = list(verse_rows)
+        n = len(words_in_verse)
+        if n < 2:
+            continue
+
+        i = 0
+        while i < n - 1:
+            gem_cur  = words_in_verse[i]["gematria"]
+            gem_next = words_in_verse[i + 1]["gematria"]
+            diff = gem_next - gem_cur
+
+            if want_equal:
+                if diff != 0:
+                    i += 1
+                    continue
+                run_dir = "equal"
+            else:
+                if diff not in (1, -1):
+                    i += 1
+                    continue
+                run_dir = "up" if diff == 1 else "down"
+                if (run_dir == "up" and not want_up) or (run_dir == "down" and not want_down):
+                    i += 1
+                    continue
+
+            # Extend the run
+            j = i + 1
+            while j < n - 1:
+                d = words_in_verse[j + 1]["gematria"] - words_in_verse[j]["gematria"]
+                if d != diff:
+                    break
+                j += 1
+
+            run_len = j - i + 1
+            if min_len <= run_len <= max_len:
+                r0 = words_in_verse[i]
+                hebrew_book = book_to_hebrew(r0["book"])
+                ref = f"{hebrew_book} {r0['chapter']}:{r0['verse']}"
+                d_words = _display_words_joined(r0["verse_text"])
+                run_words = [
+                    d_words[words_in_verse[k]["start_word"] - 1]
+                    if words_in_verse[k]["start_word"] - 1 < len(d_words)
+                    else words_in_verse[k]["text"]
+                    for k in range(i, j + 1)
+                ]
+                run_values = [words_in_verse[k]["gematria"] for k in range(i, j + 1)]
+                matches.append(GematriaRun(
+                    ref=ref,
+                    verse_text=r0["verse_text"],
+                    run_words=run_words,
+                    run_values=run_values,
+                    direction=run_dir,
+                    start_value=run_values[0],
+                    run_length=run_len,
+                ))
+            i = j + 1
+
+    matches.sort(key=lambda x: x.run_length, reverse=True)
+    return GematriaRunsResult(
+        direction=direction,
+        min_length=min_len,
+        total_runs=len(matches),
+        runs=matches,
+    )
 
 
 def _common_letters(a: str, b: str) -> set:
